@@ -6,6 +6,21 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
+// Doctor Pages
+import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+import AppointmentsPage from "./pages/doctor/AppointmentsPage";
+import PatientsPage from "./pages/doctor/PatientsPage";
+import ReportsPage from "./pages/doctor/ReportsPage";
+import FinancePage from "./pages/doctor/FinancePage";
+import StaffPage from "./pages/doctor/StaffPage";
+import SharePage from "./pages/doctor/SharePage";
+
+// Admin Pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+// Public Pages
+import BookAppointment from "./pages/BookAppointment";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -16,7 +31,27 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Doctor Routes */}
+          <Route path="/doctor" element={<DoctorDashboard />} />
+          <Route path="/doctor/appointments" element={<AppointmentsPage />} />
+          <Route path="/doctor/patients" element={<PatientsPage />} />
+          <Route path="/doctor/reports" element={<ReportsPage />} />
+          <Route path="/doctor/finance" element={<FinancePage />} />
+          <Route path="/doctor/staff" element={<StaffPage />} />
+          <Route path="/doctor/share" element={<SharePage />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/hospitals" element={<AdminDashboard />} />
+          <Route path="/admin/doctors" element={<AdminDashboard />} />
+          <Route path="/admin/patients" element={<AdminDashboard />} />
+          <Route path="/admin/activity" element={<AdminDashboard />} />
+          
+          {/* Public Booking */}
+          <Route path="/book/:doctorId" element={<BookAppointment />} />
+          
+          {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
