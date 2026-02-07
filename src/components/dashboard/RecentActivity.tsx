@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Activity, UserPlus, Calendar, FileText, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,9 +27,7 @@ const iconMap = {
   payment: CreditCard,
 };
 
-export function RecentActivity({ appointments = [] }: RecentActivityProps) {
-  // Map appointments to activities
-  // Sort by time (assuming they are today)
+export const RecentActivity = memo(function RecentActivity({ appointments = [] }: RecentActivityProps) {
   const activities: ActivityItem[] = appointments.slice(0, 5).map(app => ({
     id: app.id,
     type: 'appointment',
@@ -38,36 +37,38 @@ export function RecentActivity({ appointments = [] }: RecentActivityProps) {
 
   if (activities.length === 0) {
     return (
-      <div className="rounded-xl bg-card p-6 shadow-card">
-        <h3 className="font-display text-lg font-semibold text-card-foreground mb-4">Recent Activity</h3>
+      <div className="rounded-xl bg-card p-4 shadow-card sm:p-6">
+        <h3 className="font-display text-base font-semibold text-card-foreground mb-3 sm:text-lg sm:mb-4">
+          Recent Activity
+        </h3>
         <p className="text-sm text-muted-foreground">No recent activity today.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-card p-6 shadow-card">
-      <div className="flex items-center gap-2 mb-4">
-        <Activity className="h-5 w-5 text-primary" />
-        <h3 className="font-display text-lg font-semibold text-card-foreground">
+    <div className="rounded-xl bg-card p-4 shadow-card sm:p-6">
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <Activity className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
+        <h3 className="font-display text-base font-semibold text-card-foreground sm:text-lg">
           Recent Activity
         </h3>
       </div>
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {activities.map((activity, index) => {
           const Icon = iconMap[activity.type];
           return (
             <div
               key={activity.id}
-              className="flex items-start gap-3 animate-fade-in"
+              className="flex items-start gap-2 animate-fade-in sm:gap-3"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className={cn("rounded-lg p-2", colorMap[activity.type])}>
-                <Icon className="h-4 w-4" />
+              <div className={cn("rounded-lg p-1.5 flex-shrink-0 sm:p-2", colorMap[activity.type])}>
+                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-card-foreground">{activity.message}</p>
-                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                <p className="text-xs text-card-foreground truncate sm:text-sm">{activity.message}</p>
+                <p className="text-[10px] text-muted-foreground sm:text-xs">{activity.time}</p>
               </div>
             </div>
           );
@@ -75,4 +76,4 @@ export function RecentActivity({ appointments = [] }: RecentActivityProps) {
       </div>
     </div>
   );
-}
+});

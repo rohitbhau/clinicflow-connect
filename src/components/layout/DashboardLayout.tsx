@@ -1,5 +1,7 @@
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,15 +12,22 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, title, subtitle, type, onSearch }: DashboardLayoutProps) {
+  const isMobile = useIsMobile();
+
   return (
     <div className="min-h-screen bg-background">
-      <DashboardSidebar type={type} />
-      <div className="pl-64">
-        <DashboardHeader title={title} subtitle={subtitle} onSearch={onSearch} />
-        <main className="p-6">
+      {/* Desktop Sidebar - hidden on mobile */}
+      {!isMobile && <DashboardSidebar type={type} />}
+      
+      <div className={isMobile ? "pb-20" : "pl-64"}>
+        <DashboardHeader title={title} subtitle={subtitle} onSearch={onSearch} isMobile={isMobile} />
+        <main className={isMobile ? "p-4" : "p-6"}>
           {children}
         </main>
       </div>
+      
+      {/* Mobile Bottom Navigation */}
+      {isMobile && <MobileBottomNav type={type} />}
     </div>
   );
 }
