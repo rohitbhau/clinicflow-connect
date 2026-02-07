@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ClinicFlow Connect</string>
+    <string name="title_activity_main">ClinicFlow Connect</string>
+    <string name="package_name">com.clinicflow.connect</string>
+    <string name="custom_url_scheme">com.clinicflow.connect</string>
+</resources>
