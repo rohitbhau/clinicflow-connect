@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -18,7 +19,7 @@ const iconColorClasses = {
   info: "bg-info/10 text-info",
 };
 
-export function StatsCard({
+export const StatsCard = memo(function StatsCard({
   title,
   value,
   change,
@@ -27,17 +28,17 @@ export function StatsCard({
   iconColor = "primary",
 }: StatsCardProps) {
   return (
-    <div className="rounded-xl bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover animate-fade-in">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 font-display text-3xl font-bold text-card-foreground">
+    <div className="rounded-xl bg-card p-4 shadow-card transition-all duration-300 hover:shadow-card-hover animate-fade-in sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground truncate sm:text-sm">{title}</p>
+          <p className="mt-1 font-display text-2xl font-bold text-card-foreground sm:mt-2 sm:text-3xl">
             {value}
           </p>
           {change && (
             <p
               className={cn(
-                "mt-1 text-sm font-medium",
+                "mt-0.5 text-xs font-medium truncate sm:mt-1 sm:text-sm",
                 changeType === "positive" && "text-success",
                 changeType === "negative" && "text-destructive",
                 changeType === "neutral" && "text-muted-foreground"
@@ -47,10 +48,10 @@ export function StatsCard({
             </p>
           )}
         </div>
-        <div className={cn("rounded-lg p-3", iconColorClasses[iconColor])}>
-          <Icon className="h-6 w-6" />
+        <div className={cn("rounded-lg p-2 flex-shrink-0 sm:p-3", iconColorClasses[iconColor])}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
       </div>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -8,39 +8,115 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Users, DollarSign, Clock, CheckCircle, Play, Check, X, Loader2 } from "lucide-react";
+import { Calendar, Users, Clock, CheckCircle, Play, Check, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AppointmentDialog } from "@/components/dialogs/AppointmentDialog";
 import api from "@/lib/api";
 
+const AppointmentItem = memo(function AppointmentItem({ 
+  appointment, 
+  index, 
+  onStatusChange,
+  isMobile 
+}: { 
+  appointment: any; 
+  index: number; 
+  onStatusChange: (id: string, status: string) => void;
+  isMobile: boolean;
+}) {
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case "in-progress": return "bg-warning/10 text-warning border-warning/20";
+      case "completed": return "bg-success/10 text-success border-success/20";
+      case "cancelled": return "bg-destructive/10 text-destructive border-destructive/20";
+      default: return "bg-info/10 text-info border-info/20";
+    }
+  };
+
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-all hover:shadow-card-hover animate-slide-up sm:flex-row sm:items-center sm:justify-between sm:p-4"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${
+          appointment.status === "in-progress" ? "bg-warning/10" : "bg-info/10"
+        }`}>
+          <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${
+            appointment.status === "in-progress" ? "text-warning" : "text-info"
+          }`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-card-foreground text-sm truncate sm:text-base">{appointment.patientName}</h4>
+          <p className="text-xs text-muted-foreground truncate">{appointment.type} • {appointment.time}</p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 sm:justify-end">
+        <Badge variant="outline" className={`text-xs ${getStatusStyle(appointment.status)}`}>
+          {appointment.status === "in-progress" ? "In Progress" : "Scheduled"}
+        </Badge>
+        <div className="flex gap-1">
+          {appointment.status === "scheduled" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-warning hover:bg-warning/10"
+              onClick={() => onStatusChange(appointment.id, "in-progress")}
+            >
+              <Play className="h-4 w-4" />
+            </Button>
+          )}
+          {appointment.status === "in-progress" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-success hover:bg-success/10"
+              onClick={() => onStatusChange(appointment.id, "completed")}
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+            onClick={() => onStatusChange(appointment.id, "cancelled")}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function DoctorDashboard() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const response = await api.get('/doctors/dashboard-stats');
       setDashboardData(response.data.data);
     } catch (error) {
-      //   console.error("Failed to fetch dashboard stats", error);
-      // Silent fail during polling to avoid spamming console
+      // Silent fail during polling
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
-    // Poll every 10 seconds for real-time updates
     const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchDashboardData]);
 
-  // Use fetched appointments or fallback to empty array
   const todayAppointments = dashboardData?.appointments || [];
   const stats = dashboardData?.stats || {
     todayAppointments: 0,
@@ -49,17 +125,16 @@ export default function DoctorDashboard() {
     totalPatients: 0
   };
 
-  // Filter appointments based on search query
   const filteredAppointments = todayAppointments.filter((app: any) =>
     app.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     app.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleStatusChange = async (id: string, status: "in-progress" | "completed" | "cancelled") => {
+  const handleStatusChange = useCallback(async (id: string, status: "in-progress" | "completed" | "cancelled") => {
     try {
       await api.patch(`/appointments/${id}/status`, { status });
       toast({ title: `Appointment marked as ${status}` });
-      fetchDashboardData(); // Refresh data
+      fetchDashboardData();
     } catch (error) {
       console.error("Status update failed", error);
       toast({
@@ -68,10 +143,9 @@ export default function DoctorDashboard() {
         variant: "destructive"
       });
     }
-  };
+  }, [fetchDashboardData, toast]);
 
-  const handleSaveAppointment = async (data: any) => {
-    // Create only for dashboard quick action
+  const handleSaveAppointment = useCallback(async (data: any) => {
     const doctorId = user.id;
     if (!doctorId) {
       toast({ title: "Error", description: "Could not identify doctor", variant: "destructive" });
@@ -86,7 +160,7 @@ export default function DoctorDashboard() {
         time: data.time,
         appointmentType: data.type,
         notes: data.notes,
-        email: "" // Optional
+        email: ""
       };
       await api.post('/appointments/book', payload);
       toast({ title: "Appointment scheduled", description: `Appointment for ${data.patientName} has been created.` });
@@ -96,16 +170,7 @@ export default function DoctorDashboard() {
       console.error("Failed to create appointment", error);
       toast({ title: "Error", description: "Failed to schedule", variant: "destructive" });
     }
-  };
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case "in-progress": return "bg-warning/10 text-warning border-warning/20";
-      case "completed": return "bg-success/10 text-success border-success/20";
-      case "cancelled": return "bg-destructive/10 text-destructive border-destructive/20";
-      default: return "bg-info/10 text-info border-info/20";
-    }
-  };
+  }, [user.id, fetchDashboardData, toast]);
 
   if (loading) {
     return (
@@ -120,168 +185,125 @@ export default function DoctorDashboard() {
   return (
     <DashboardLayout
       type="doctor"
-      title={`Welcome back, ${user.name || "Doctor"}`}
-      subtitle="Here's what's happening with your clinic today"
+      title={isMobile ? "Dashboard" : `Welcome back, ${user.name || "Doctor"}`}
+      subtitle={!isMobile ? "Here's what's happening with your clinic today" : undefined}
       onSearch={setSearchQuery}
     >
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        <StatsCard
-          title="Today's Appointments"
-          value={stats.todayAppointments}
-          change={`${stats.pendingAppointments} remaining`}
-          changeType="positive"
-          icon={Calendar}
-          iconColor="primary"
-        />
-        <StatsCard
-          title="Total Patients"
-          value={stats.totalPatients}
-          change="Total registered"
-          changeType="positive"
-          icon={Users}
-          iconColor="success"
-        />
-        <StatsCard
-          title="Pending"
-          value={stats.pendingAppointments}
-          change={todayAppointments.some((a: any) => a.status === "in-progress") ? "1 in progress" : "None active"}
-          changeType="neutral"
-          icon={Clock}
-          iconColor="warning"
-        />
-        {/* Commented out Revenue as requested
-        <StatsCard
-          title="Revenue (Today)"
-          value={`$${stats.todayRevenue.toLocaleString()}`}
-          change="Estimated"
-          changeType="positive"
-          icon={DollarSign}
-          iconColor="info"
-        />
-        */}
+      {/* Stats Grid - Horizontally scrollable on mobile */}
+      <div className="mb-4 sm:mb-6">
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
+          <div className="flex-shrink-0 w-[160px] sm:w-auto">
+            <StatsCard
+              title="Today's Appointments"
+              value={stats.todayAppointments}
+              change={`${stats.pendingAppointments} remaining`}
+              changeType="positive"
+              icon={Calendar}
+              iconColor="primary"
+            />
+          </div>
+          <div className="flex-shrink-0 w-[160px] sm:w-auto">
+            <StatsCard
+              title="Total Patients"
+              value={stats.totalPatients}
+              change="Total registered"
+              changeType="positive"
+              icon={Users}
+              iconColor="success"
+            />
+          </div>
+          <div className="flex-shrink-0 w-[160px] sm:w-auto">
+            <StatsCard
+              title="Pending"
+              value={stats.pendingAppointments}
+              change={todayAppointments.some((a: any) => a.status === "in-progress") ? "1 in progress" : "None active"}
+              changeType="neutral"
+              icon={Clock}
+              iconColor="warning"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 sm:gap-6">
         <div className="lg:col-span-2">
           <Card className="shadow-card">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="flex flex-col gap-2 pb-3 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Calendar className="h-5 w-5 text-primary" />
                 Today's Appointments
               </CardTitle>
-              <Link to="/doctor/appointments">
-                <Button variant="outline" size="sm">View All</Button>
-              </Link>
-              <Link to={`/queue/${user.id}`} target="_blank">
-                <Button variant="default" size="sm" className="ml-2">Live Queue</Button>
-              </Link>
+              <div className="flex gap-2">
+                <Link to="/doctor/appointments">
+                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">View All</Button>
+                </Link>
+                <Link to={`/queue/${user.id}`} target="_blank">
+                  <Button variant="default" size="sm" className="text-xs sm:text-sm">Live Queue</Button>
+                </Link>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
               <Tabs defaultValue="upcoming" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="upcoming" className="gap-2">
-                    <Clock className="h-4 w-4" />
+                <TabsList className="mb-3 w-full sm:mb-4 sm:w-auto">
+                  <TabsTrigger value="upcoming" className="flex-1 gap-1 text-xs sm:flex-none sm:gap-2 sm:text-sm">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                     Upcoming ({filteredAppointments.filter((a: any) => a.status === "scheduled" || a.status === "in-progress").length})
                   </TabsTrigger>
-                  <TabsTrigger value="completed" className="gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Completed ({filteredAppointments.filter((a: any) => a.status === "completed").length})
+                  <TabsTrigger value="completed" className="flex-1 gap-1 text-xs sm:flex-none sm:gap-2 sm:text-sm">
+                    <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                    Done ({filteredAppointments.filter((a: any) => a.status === "completed").length})
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="upcoming" className="space-y-3 mt-0">
+                <TabsContent value="upcoming" className="space-y-2 mt-0 sm:space-y-3">
                   {filteredAppointments
                     .filter((a: any) => a.status === "scheduled" || a.status === "in-progress")
                     .slice(0, 5)
                     .map((appointment: any, index: number) => (
-                      <div
+                      <AppointmentItem
                         key={appointment.id}
-                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-all hover:shadow-card-hover animate-slide-up"
-                        style={{ animationDelay: `${index * 50}ms` }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${appointment.status === "in-progress" ? "bg-warning/10" : "bg-info/10"
-                            }`}>
-                            <Clock className={`h-5 w-5 ${appointment.status === "in-progress" ? "text-warning" : "text-info"
-                              }`} />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-card-foreground">{appointment.patientName}</h4>
-                            <p className="text-sm text-muted-foreground">{appointment.type} • {appointment.time}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={getStatusStyle(appointment.status)}>
-                            {appointment.status === "in-progress" ? "In Progress" : "Scheduled"}
-                          </Badge>
-                          {appointment.status === "scheduled" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-warning hover:bg-warning/10"
-                              onClick={() => handleStatusChange(appointment.id, "in-progress")}
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {appointment.status === "in-progress" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-success hover:bg-success/10"
-                              onClick={() => handleStatusChange(appointment.id, "completed")}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => handleStatusChange(appointment.id, "cancelled")}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                        appointment={appointment}
+                        index={index}
+                        onStatusChange={handleStatusChange}
+                        isMobile={isMobile}
+                      />
                     ))}
                   {filteredAppointments.filter((a: any) => a.status === "scheduled" || a.status === "in-progress").length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>All appointments completed!</p>
+                    <div className="text-center py-6 text-muted-foreground sm:py-8">
+                      <CheckCircle className="h-10 w-10 mx-auto mb-2 opacity-50 sm:h-12 sm:w-12" />
+                      <p className="text-sm">All appointments completed!</p>
                     </div>
                   )}
                 </TabsContent>
 
-                <TabsContent value="completed" className="space-y-3 mt-0">
+                <TabsContent value="completed" className="space-y-2 mt-0 sm:space-y-3">
                   {filteredAppointments
                     .filter((a: any) => a.status === "completed")
                     .map((appointment: any, index: number) => (
                       <div
                         key={appointment.id}
-                        className="flex items-center justify-between rounded-lg border border-border p-4 animate-fade-in"
+                        className="flex items-center justify-between rounded-lg border border-border p-3 animate-fade-in sm:p-4"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                            <CheckCircle className="h-5 w-5 text-success" />
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 sm:h-10 sm:w-10">
+                            <CheckCircle className="h-4 w-4 text-success sm:h-5 sm:w-5" />
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-card-foreground">{appointment.patientName}</h4>
-                            <p className="text-sm text-muted-foreground">{appointment.type} • {appointment.time}</p>
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-card-foreground text-sm truncate sm:text-base">{appointment.patientName}</h4>
+                            <p className="text-xs text-muted-foreground truncate">{appointment.type} • {appointment.time}</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
-                          Completed
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-xs">
+                          Done
                         </Badge>
                       </div>
                     ))}
                   {filteredAppointments.filter((a: any) => a.status === "completed").length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No completed appointments yet</p>
+                    <div className="text-center py-6 text-muted-foreground sm:py-8">
+                      <Calendar className="h-10 w-10 mx-auto mb-2 opacity-50 sm:h-12 sm:w-12" />
+                      <p className="text-sm">No completed appointments yet</p>
                     </div>
                   )}
                 </TabsContent>
@@ -289,7 +311,8 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
         </div>
-        <div className="space-y-6">
+        
+        <div className="space-y-4 sm:space-y-6">
           <QuickActions onNewAppointment={() => setDialogOpen(true)} />
           <RecentActivity appointments={todayAppointments} />
         </div>
