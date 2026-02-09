@@ -232,6 +232,12 @@
   }
 }
 
+@keyframes splashBar {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

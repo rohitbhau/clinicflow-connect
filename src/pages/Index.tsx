@@ -145,13 +145,13 @@ export default function Index() {
           </p>
           <div className="flex flex-col gap-3 animate-slide-up sm:flex-row sm:items-center sm:justify-center sm:gap-4" style={{ animationDelay: "200ms" }}>
             <Link to="/login?role=doctor" className="w-full sm:w-auto">
-              <Button size="lg" className="gradient-primary gap-2 h-12 w-full text-base font-semibold sm:w-auto sm:px-8">
+              <Button size="lg" className="gradient-primary gap-2 h-12 w-full text-base font-semibold sm:w-auto sm:px-8 touch-target">
                 Doctor Portal
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link to="/login?role=admin" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="gap-2 h-12 w-full text-base font-semibold sm:w-auto sm:px-8">
+              <Button size="lg" variant="outline" className="gap-2 h-12 w-full text-base font-semibold sm:w-auto sm:px-8 touch-target">
                 Admin Panel
                 <Building2 className="h-4 w-4" />
               </Button>
