@@ -135,7 +135,7 @@ export default function BookAppointment() {
 
             <div className="my-6 p-6 bg-primary/5 rounded-xl border border-primary/20">
               <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-2">Your Token Number</p>
-              <div className="text-6xl font-black text-primary animate-pulse">
+              <div className="text-4xl md:text-6xl font-black text-primary animate-pulse break-all">
                 #{tokenDetails?.tokenNumber || "0"}
               </div>
             </div>
