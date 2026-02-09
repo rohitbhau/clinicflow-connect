@@ -9,5 +9,6 @@ router.use(authenticate);
 router.use(authorize('doctor'));
 
 router.get('/dashboard-stats', doctorController.getDashboardStats);
+router.get('/patients', doctorController.getPatients);
 
 export default router;

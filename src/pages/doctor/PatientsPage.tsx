@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,19 +16,38 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { Patient } from "@/data/mockData";
 
 export default function PatientsPage() {
-  const { patients, appointments, reports, addPatient, updatePatient, deletePatient } = useData();
+  const { appointments, reports, addPatient, updatePatient, deletePatient } = useData();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
+  const [fetchedPatients, setFetchedPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
-  const doctorPatients = patients.filter((p) => p.doctorId === "d1");
-  const filteredPatients = doctorPatients.filter((p) =>
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await api.get('/doctors/patients');
+        if (response.data.success) {
+          setFetchedPatients(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch patients", error);
+        toast({ title: "Failed to load patients", description: "Could not fetch patient list", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPatients();
+  }, [toast]);
+
+  const filteredPatients = fetchedPatients.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.email.toLowerCase().includes(search.toLowerCase())
+    p.email.toLowerCase().includes(search.toLowerCase()) ||
+    p.phone.includes(search)
   );
 
   const handleAddClick = () => { setSelectedPatient(null); setDialogOpen(true); };
@@ -36,17 +56,24 @@ export default function PatientsPage() {
   const handleViewClick = (patient: Patient) => { setSelectedPatient(patient); setDetailsOpen(true); };
 
   const handleSave = (data: any) => {
+    // Ideally this should call API, but keeping mock fallback for now + local update
     if (selectedPatient) {
-      updatePatient(selectedPatient.id, data);
-      toast({ title: "Patient updated" });
+       // update local state
+       setFetchedPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, ...data } : p));
+       updatePatient(selectedPatient.id, data);
+       toast({ title: "Patient updated" });
     } else {
-      addPatient({ ...data, doctorId: "d1", doctorName: "Dr. John Smith", hospitalId: "h1", lastVisit: "Never", totalVisits: 0 });
-      toast({ title: "Patient added" });
+       // Optimistic add
+       const newPatient = { ...data, id: Math.random().toString(36).substr(2, 9), doctorId: "d1", totalVisits: 0, lastVisit: "Never", status: 'active' };
+       setFetchedPatients(prev => [newPatient, ...prev]);
+       addPatient(newPatient); // Sync to mock store just in case
+       toast({ title: "Patient added" });
     }
   };
 
   const handleDelete = () => {
     if (selectedPatient) {
+      setFetchedPatients(prev => prev.filter(p => p.id !== selectedPatient.id));
       deletePatient(selectedPatient.id);
       toast({ title: "Patient removed", variant: "destructive" });
       setDeleteDialogOpen(false);

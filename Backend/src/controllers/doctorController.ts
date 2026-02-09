@@ -75,6 +75,58 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     }
 };
 
+export const getPatients = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        // Find doctor profile associated with logged-in user
+        const doctor = await Doctor.findOne({ userId });
+        if (!doctor) {
+            throw new ApiError('Doctor profile not found', 404);
+        }
+
+        // Aggregation to find unique patients from appointments
+        // We group by phone number as a unique identifier for now
+        const patients = await Appointment.aggregate([
+            { $match: { doctorId: doctor._id } },
+            {
+                $group: {
+                    _id: "$patientPhone",
+                    name: { $first: "$patientName" },
+                    email: { $first: "$patientEmail" },
+                    phone: { $first: "$patientPhone" },
+                    lastVisit: { $max: "$appointmentDate" },
+                    totalVisits: { $sum: 1 },
+                    patientId: { $first: "$patientId" } // Keep reference if exists
+                }
+            },
+            { $sort: { lastVisit: -1 } }
+        ]);
+
+        // Transform for frontend
+        const formattedPatients = patients.map((p, index) => ({
+            id: p.patientId || `temp-${index}`,
+            name: p.name || 'Guest Patient',
+            email: p.email || '',
+            phone: p.phone || 'N/A',
+            lastVisit: new Date(p.lastVisit).toLocaleDateString(),
+            totalVisits: p.totalVisits,
+            status: 'active', // Default status
+            doctorId: doctor._id,
+        }));
+
+        res.json({
+            success: true,
+            data: formattedPatients
+        });
+
+    } catch (error) {
+        logger.error('Get doctor patients error:', error);
+        throw error;
+    }
+};
+
 export const doctorController = {
-    getDashboardStats
+    getDashboardStats,
+    getPatients
 };
