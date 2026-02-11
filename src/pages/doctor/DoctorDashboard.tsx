@@ -14,14 +14,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AppointmentDialog } from "@/components/dialogs/AppointmentDialog";
 import api from "@/lib/api";
 
-const AppointmentItem = memo(function AppointmentItem({ 
-  appointment, 
-  index, 
+const AppointmentItem = memo(function AppointmentItem({
+  appointment,
+  index,
   onStatusChange,
-  isMobile 
-}: { 
-  appointment: any; 
-  index: number; 
+  isMobile
+}: {
+  appointment: any;
+  index: number;
   onStatusChange: (id: string, status: string) => void;
   isMobile: boolean;
 }) {
@@ -40,12 +40,10 @@ const AppointmentItem = memo(function AppointmentItem({
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex items-center gap-3 sm:gap-4">
-        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${
-          appointment.status === "in-progress" ? "bg-warning/10" : "bg-info/10"
-        }`}>
-          <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${
-            appointment.status === "in-progress" ? "text-warning" : "text-info"
-          }`} />
+        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 ${appointment.status === "in-progress" ? "bg-warning/10" : "bg-info/10"
+          }`}>
+          <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${appointment.status === "in-progress" ? "text-warning" : "text-info"
+            }`} />
         </div>
         <div className="min-w-0 flex-1">
           <h4 className="font-semibold text-card-foreground text-sm truncate sm:text-base">{appointment.patientName}</h4>
@@ -100,16 +98,19 @@ export default function DoctorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
   const fetchDashboardData = useCallback(async () => {
     try {
-      const response = await api.get('/doctors/dashboard-stats');
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      const response = await api.get(`/doctors/dashboard-stats?date=${formattedDate}`);
       setDashboardData(response.data.data);
     } catch (error) {
       // Silent fail during polling
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -194,7 +195,7 @@ export default function DoctorDashboard() {
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-3">
           <div className="flex-shrink-0 w-[160px] sm:w-auto">
             <StatsCard
-              title="Today's Appointments"
+              title="Appointments"
               value={stats.todayAppointments}
               change={`${stats.pendingAppointments} remaining`}
               changeType="positive"
@@ -232,15 +233,23 @@ export default function DoctorDashboard() {
             <CardHeader className="flex flex-col gap-2 pb-3 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Calendar className="h-5 w-5 text-primary" />
-                Today's Appointments
+                Appointments
               </CardTitle>
-              <div className="flex gap-2">
-                <Link to="/doctor/appointments">
-                  <Button variant="outline" size="sm" className="text-xs sm:text-sm">View All</Button>
-                </Link>
-                <Link to={`/queue/${user.id}`} target="_blank">
-                  <Button variant="default" size="sm" className="text-xs sm:text-sm">Live Queue</Button>
-                </Link>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <input
+                  type="date"
+                  className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
+                  value={selectedDate.toISOString().split('T')[0]}
+                  onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                />
+                <div className="flex gap-2">
+                  <Link to="/doctor/appointments">
+                    <Button variant="outline" size="sm" className="text-xs sm:text-sm">View All</Button>
+                  </Link>
+                  <Link to={`/queue/${user.id}`} target="_blank">
+                    <Button variant="default" size="sm" className="text-xs sm:text-sm">Live Queue</Button>
+                  </Link>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
@@ -311,7 +320,7 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="space-y-4 sm:space-y-6">
           <QuickActions onNewAppointment={() => setDialogOpen(true)} />
           <RecentActivity appointments={todayAppointments} />

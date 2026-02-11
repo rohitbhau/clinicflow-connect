@@ -112,13 +112,17 @@ export const DashboardSidebar = memo(function DashboardSidebar({ type }: Dashboa
               </p>
             </div>
           </div>
-          <Link
-            to="/"
-            className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+          <button
+            onClick={() => {
+              localStorage.removeItem("user");
+              localStorage.removeItem("token");
+              window.location.href = "/login";
+            }}
+            className="mt-3 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" />
             <span>Sign Out</span>
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

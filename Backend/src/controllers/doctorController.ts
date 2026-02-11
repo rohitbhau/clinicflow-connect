@@ -15,9 +15,19 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
             throw new ApiError('Doctor profile not found', 404);
         }
 
-        const startOfDay = new Date();
+        const { date } = req.query;
+        let queryDate = new Date();
+
+        if (date) {
+            const parsedDate = new Date(date as string);
+            if (!isNaN(parsedDate.getTime())) {
+                queryDate = parsedDate;
+            }
+        }
+
+        const startOfDay = new Date(queryDate);
         startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date();
+        const endOfDay = new Date(queryDate);
         endOfDay.setHours(23, 59, 59, 999);
 
         // 1. Fetch Today's Appointments
@@ -75,6 +85,43 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     }
 };
 
+export const getUpcomingAppointments = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const doctor = await Doctor.findOne({ userId });
+        if (!doctor) {
+            throw new ApiError('Doctor profile not found', 404);
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const appointments = await Appointment.find({
+            doctorId: doctor._id,
+            appointmentDate: { $gte: startOfDay }
+        }).sort({ appointmentDate: 1, startTime: 1 });
+
+        res.json({
+            success: true,
+            data: appointments.map(app => ({
+                id: app._id,
+                patientName: app.patientName || 'Guest',
+                patientPhone: app.patientPhone || '',
+                date: app.appointmentDate.toISOString().split('T')[0],
+                time: app.startTime,
+                type: app.type,
+                status: app.status,
+                reason: app.reason,
+                tokenNumber: app.tokenNumber
+            }))
+        });
+
+    } catch (error) {
+        logger.error('Get upcoming appointments error:', error);
+        throw error;
+    }
+};
+
 export const getPatients = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
@@ -128,5 +175,6 @@ export const getPatients = async (req: AuthRequest, res: Response): Promise<void
 
 export const doctorController = {
     getDashboardStats,
+    getUpcomingAppointments,
     getPatients
 };

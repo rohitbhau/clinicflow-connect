@@ -9,6 +9,7 @@ router.use(authenticate);
 router.use(authorize('doctor'));
 
 router.get('/dashboard-stats', doctorController.getDashboardStats);
+router.get('/upcoming-appointments', doctorController.getUpcomingAppointments);
 router.get('/patients', doctorController.getPatients);
 
 export default router;

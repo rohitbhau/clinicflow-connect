@@ -23,15 +23,15 @@ type Appointment = {
   reason?: string;
 };
 
-const AppointmentCard = memo(function AppointmentCard({ 
-  appointment, 
-  index, 
-  onStatusChange, 
+const AppointmentCard = memo(function AppointmentCard({
+  appointment,
+  index,
+  onStatusChange,
   onEdit,
-  isMobile 
-}: { 
-  appointment: Appointment; 
-  index: number; 
+  isMobile
+}: {
+  appointment: Appointment;
+  index: number;
   onStatusChange: (id: string, status: Appointment["status"]) => void;
   onEdit: (appointment: Appointment) => void;
   isMobile: boolean;
@@ -51,16 +51,14 @@ const AppointmentCard = memo(function AppointmentCard({
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg sm:h-12 sm:w-12 ${
-          appointment.status === "in-progress" ? "bg-warning/10" :
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg sm:h-12 sm:w-12 ${appointment.status === "in-progress" ? "bg-warning/10" :
           appointment.status === "completed" ? "bg-success/10" :
-          appointment.status === "cancelled" ? "bg-destructive/10" : "bg-info/10"
-        }`}>
-          <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${
-            appointment.status === "in-progress" ? "text-warning" :
+            appointment.status === "cancelled" ? "bg-destructive/10" : "bg-info/10"
+          }`}>
+          <Clock className={`h-4 w-4 sm:h-5 sm:w-5 ${appointment.status === "in-progress" ? "text-warning" :
             appointment.status === "completed" ? "text-success" :
-            appointment.status === "cancelled" ? "text-destructive" : "text-info"
-          }`} />
+              appointment.status === "cancelled" ? "text-destructive" : "text-info"
+            }`} />
         </div>
         <div className="min-w-0 flex-1">
           <h4 className="font-semibold text-card-foreground truncate">{appointment.patientName}</h4>
@@ -81,7 +79,7 @@ const AppointmentCard = memo(function AppointmentCard({
           </div>
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-3">
         <Badge variant="outline" className={`text-xs ${getStatusStyle(appointment.status)}`}>
           {appointment.status === "in-progress" ? "In Progress" : appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -141,9 +139,15 @@ export default function AppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const [viewMode, setViewMode] = useState<"daily" | "upcoming">("daily");
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+
   const fetchAppointments = useCallback(async () => {
     try {
-      const response = await api.get('/doctors/dashboard-stats');
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      const response = await api.get(`/doctors/dashboard-stats?date=${formattedDate}`);
       if (response.data && response.data.data && response.data.data.appointments) {
         setAppointments(response.data.data.appointments);
       }
@@ -157,11 +161,34 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false);
     }
+  }, [toast, selectedDate]);
+
+  const fetchUpcomingAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/doctors/upcoming-appointments');
+      if (response.data && response.data.data) {
+        setUpcomingAppointments(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch upcoming appointments", error);
+      toast({
+        title: "Error",
+        description: "Could not load upcoming appointments",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
 
   useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+    if (viewMode === "daily") {
+      fetchAppointments();
+    } else {
+      fetchUpcomingAppointments();
+    }
+  }, [fetchAppointments, fetchUpcomingAppointments, viewMode]);
 
   const filteredAppointments = appointments.filter((app: Appointment) =>
     app.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -193,7 +220,8 @@ export default function AppointmentsPage() {
     try {
       await api.patch(`/appointments/${id}/status`, { status });
       toast({ title: `Appointment marked as ${status}` });
-      fetchAppointments();
+      if (viewMode === "daily") fetchAppointments();
+      else fetchUpcomingAppointments();
     } catch (error) {
       console.error("Status update failed", error);
       toast({
@@ -202,7 +230,7 @@ export default function AppointmentsPage() {
         variant: "destructive"
       });
     }
-  }, [fetchAppointments, toast]);
+  }, [fetchAppointments, fetchUpcomingAppointments, toast, viewMode]);
 
   const handleSave = useCallback(async (data: any) => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -234,27 +262,28 @@ export default function AppointmentsPage() {
         toast({ title: "Appointment scheduled", description: `Appointment for ${data.patientName} has been created.` });
       }
       setDialogOpen(false);
-      fetchAppointments();
+      if (viewMode === "daily") fetchAppointments();
+      else fetchUpcomingAppointments();
     } catch (error) {
       console.error("Save failed", error);
       toast({ title: "Error", description: "Failed to save appointment", variant: "destructive" });
     }
-  }, [selectedAppointment, fetchAppointments, toast]);
+  }, [selectedAppointment, fetchAppointments, fetchUpcomingAppointments, toast, viewMode]);
 
   const handleDelete = useCallback(() => {
     toast({ title: "Note", description: "Delete functionality coming soon to API" });
     setDeleteDialogOpen(false);
   }, [toast]);
+  const groupedUpcoming = upcomingAppointments.reduce((groups, appointment) => {
+    const date = appointment.date;
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(appointment);
+    return groups;
+  }, {} as Record<string, Appointment[]>);
 
-  if (loading) {
-    return (
-      <DashboardLayout type="doctor" title="Appointments" subtitle="Loading...">
-        <div className="flex h-96 items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const sortedDates = Object.keys(groupedUpcoming).sort();
 
   return (
     <DashboardLayout
@@ -263,134 +292,264 @@ export default function AppointmentsPage() {
       subtitle={!isMobile ? "Manage all your patient appointments" : undefined}
       onSearch={setSearchQuery}
     >
-      {/* Stats - Scrollable on mobile */}
-      <div className="mb-4 sm:mb-6">
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
-          <div className="flex-shrink-0 w-[160px] sm:w-auto">
-            <StatsCard
-              title="Today"
-              value={todayAppointments.length}
-              change={`${scheduled.length} pending`}
-              changeType="neutral"
-              icon={Calendar}
-              iconColor="primary"
-            />
-          </div>
-          <div className="flex-shrink-0 w-[160px] sm:w-auto">
-            <StatsCard
-              title="In Progress"
-              value={inProgress.length}
-              change={inProgress.length > 0 ? "Active" : "None"}
-              changeType="neutral"
-              icon={Clock}
-              iconColor="warning"
-            />
-          </div>
-          <div className="flex-shrink-0 w-[160px] sm:w-auto">
-            <StatsCard
-              title="Completed"
-              value={completed.length}
-              change="Today"
-              changeType="positive"
-              icon={CheckCircle}
-              iconColor="success"
-            />
-          </div>
-          <div className="flex-shrink-0 w-[160px] sm:w-auto">
-            <StatsCard
-              title="Cancelled"
-              value={cancelled.length}
-              change={cancelled.length === 0 ? "None" : "Today"}
-              changeType={cancelled.length === 0 ? "positive" : "neutral"}
-              icon={XCircle}
-              iconColor="info"
-            />
-          </div>
+      {/* View Toggle & Actions */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <div className="flex bg-muted p-1 rounded-lg">
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "daily" ? "bg-white shadow text-primary" : "text-muted-foreground hover:text-primary"
+              }`}
+            onClick={() => setViewMode("daily")}
+          >
+            Daily View
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${viewMode === "upcoming" ? "bg-white shadow text-primary" : "text-muted-foreground hover:text-primary"
+              }`}
+            onClick={() => setViewMode("upcoming")}
+          >
+            Upcoming Overview
+          </button>
         </div>
-      </div>
 
-      {/* Appointments Card */}
-      <Card className="shadow-card">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Calendar className="h-5 w-5 text-primary" />
-            Appointments
-          </CardTitle>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {viewMode === "daily" && (
+            <input
+              type="date"
+              className="px-3 py-2 border rounded-md text-sm"
+              value={selectedDate.toISOString().split('T')[0]}
+              onChange={(e) => setSelectedDate(new Date(e.target.value))}
+            />
+          )}
           <Button className="gradient-primary gap-2 w-full sm:w-auto" onClick={handleAddClick}>
             <Plus className="h-4 w-4" />
             New Appointment
           </Button>
-        </CardHeader>
-        <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
-          <Tabs defaultValue="all" className="w-full">
-            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
-              <TabsList className="mb-3 sm:mb-4 w-max sm:w-auto">
-                <TabsTrigger value="all" className="text-xs sm:text-sm">All ({todayAppointments.length})</TabsTrigger>
-                <TabsTrigger value="scheduled" className="text-xs sm:text-sm">Pending ({scheduled.length})</TabsTrigger>
-                <TabsTrigger value="in-progress" className="text-xs sm:text-sm">Active ({inProgress.length})</TabsTrigger>
-                <TabsTrigger value="completed" className="text-xs sm:text-sm">Done ({completed.length})</TabsTrigger>
-              </TabsList>
-            </div>
+        </div>
+      </div>
 
-            <TabsContent value="all" className="space-y-2 mt-0 sm:space-y-3">
-              {todayAppointments.map((a, i) => (
-                <AppointmentCard 
-                  key={a.id} 
-                  appointment={a} 
-                  index={i} 
-                  onStatusChange={handleStatusChange}
-                  onEdit={handleEditClick}
-                  isMobile={isMobile}
+      {loading ? (
+        <div className="flex h-96 items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      ) : viewMode === "daily" ? (
+        <div className="space-y-6">
+          {/* Stats - Scrollable on mobile */}
+          <div className="mb-4 sm:mb-6">
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+              <div className="flex-shrink-0 w-[160px] sm:w-auto">
+                <StatsCard
+                  title="Total"
+                  value={todayAppointments.length}
+                  change={`${scheduled.length} pending`}
+                  changeType="neutral"
+                  icon={Calendar}
+                  iconColor="primary"
                 />
-              ))}
-            </TabsContent>
-            <TabsContent value="scheduled" className="space-y-2 mt-0 sm:space-y-3">
-              {scheduled.map((a, i) => (
-                <AppointmentCard 
-                  key={a.id} 
-                  appointment={a} 
-                  index={i} 
-                  onStatusChange={handleStatusChange}
-                  onEdit={handleEditClick}
-                  isMobile={isMobile}
+              </div>
+              <div className="flex-shrink-0 w-[160px] sm:w-auto">
+                <StatsCard
+                  title="In Progress"
+                  value={inProgress.length}
+                  change={inProgress.length > 0 ? "Active" : "None"}
+                  changeType="neutral"
+                  icon={Clock}
+                  iconColor="warning"
                 />
-              ))}
-            </TabsContent>
-            <TabsContent value="in-progress" className="space-y-2 mt-0 sm:space-y-3">
-              {inProgress.map((a, i) => (
-                <AppointmentCard 
-                  key={a.id} 
-                  appointment={a} 
-                  index={i} 
-                  onStatusChange={handleStatusChange}
-                  onEdit={handleEditClick}
-                  isMobile={isMobile}
+              </div>
+              <div className="flex-shrink-0 w-[160px] sm:w-auto">
+                <StatsCard
+                  title="Completed"
+                  value={completed.length}
+                  change="Today"
+                  changeType="positive"
+                  icon={CheckCircle}
+                  iconColor="success"
                 />
-              ))}
-            </TabsContent>
-            <TabsContent value="completed" className="space-y-2 mt-0 sm:space-y-3">
-              {completed.map((a, i) => (
-                <AppointmentCard 
-                  key={a.id} 
-                  appointment={a} 
-                  index={i} 
-                  onStatusChange={handleStatusChange}
-                  onEdit={handleEditClick}
-                  isMobile={isMobile}
+              </div>
+              <div className="flex-shrink-0 w-[160px] sm:w-auto">
+                <StatsCard
+                  title="Cancelled"
+                  value={cancelled.length}
+                  change={cancelled.length === 0 ? "None" : "Today"}
+                  changeType={cancelled.length === 0 ? "positive" : "neutral"}
+                  icon={XCircle}
+                  iconColor="info"
                 />
-              ))}
-            </TabsContent>
-          </Tabs>
-
-          {todayAppointments.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-center sm:py-12">
-              <Calendar className="h-10 w-10 text-muted-foreground/50 mb-3 sm:h-12 sm:w-12 sm:mb-4" />
-              <h3 className="text-base font-semibold text-card-foreground sm:text-lg">No appointments today</h3>
-              <p className="text-sm text-muted-foreground">Schedule a new appointment to get started</p>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Calendar className="h-5 w-5 text-primary" />
+                Appointments List
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+              <Tabs defaultValue="all" className="w-full">
+                <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+                  <TabsList className="mb-3 sm:mb-4 w-max sm:w-auto">
+                    <TabsTrigger value="all" className="text-xs sm:text-sm">All ({todayAppointments.length})</TabsTrigger>
+                    <TabsTrigger value="scheduled" className="text-xs sm:text-sm">Pending ({scheduled.length})</TabsTrigger>
+                    <TabsTrigger value="in-progress" className="text-xs sm:text-sm">Active ({inProgress.length})</TabsTrigger>
+                    <TabsTrigger value="completed" className="text-xs sm:text-sm">Done ({completed.length})</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="all" className="space-y-2 mt-0 sm:space-y-3">
+                  {todayAppointments.map((a, i) => (
+                    <AppointmentCard
+                      key={a.id}
+                      appointment={a}
+                      index={i}
+                      onStatusChange={handleStatusChange}
+                      onEdit={handleEditClick}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </TabsContent>
+                <TabsContent value="scheduled" className="space-y-2 mt-0 sm:space-y-3">
+                  {scheduled.map((a, i) => (
+                    <AppointmentCard
+                      key={a.id}
+                      appointment={a}
+                      index={i}
+                      onStatusChange={handleStatusChange}
+                      onEdit={handleEditClick}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </TabsContent>
+                <TabsContent value="in-progress" className="space-y-2 mt-0 sm:space-y-3">
+                  {inProgress.map((a, i) => (
+                    <AppointmentCard
+                      key={a.id}
+                      appointment={a}
+                      index={i}
+                      onStatusChange={handleStatusChange}
+                      onEdit={handleEditClick}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </TabsContent>
+                <TabsContent value="completed" className="space-y-2 mt-0 sm:space-y-3">
+                  {completed.map((a, i) => (
+                    <AppointmentCard
+                      key={a.id}
+                      appointment={a}
+                      index={i}
+                      onStatusChange={handleStatusChange}
+                      onEdit={handleEditClick}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </TabsContent>
+              </Tabs>
+              {todayAppointments.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No appointments found for this date.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            {sortedDates.map((date) => {
+              const daysAppointments = groupedUpcoming[date];
+              const slotCounts = daysAppointments.reduce((acc, curr) => {
+                acc[curr.time] = (acc[curr.time] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+
+              const sortedSlots = Object.keys(slotCounts).sort();
+
+              return (
+                <Card key={date} className="shadow-card overflow-hidden">
+                  <CardHeader className="bg-muted/30 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <Calendar className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">
+                            {new Date(date).toLocaleDateString(undefined, {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground font-medium">
+                            {daysAppointments.length} Total Appointments
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-base px-3 py-1">
+                        {daysAppointments.length}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border">
+                      <div className="p-4 bg-muted/5 font-medium text-sm text-muted-foreground">
+                        Slot Wise Summary
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4">
+                        {sortedSlots.map(time => (
+                          <div key={time} className="flex flex-col items-center justify-center p-3 bg-white rounded-lg border shadow-sm">
+                            <span className="text-xs text-muted-foreground font-medium uppercase">Time</span>
+                            <span className="text-sm font-bold text-foreground my-1">{time}</span>
+                            <Badge variant="secondary" className="mt-1 text-xs">
+                              {slotCounts[time]} Patient{slotCounts[time] !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="p-4">
+                        <div className="text-sm font-medium text-muted-foreground mb-3">Detailed List</div>
+                        <div className="space-y-3">
+                          {daysAppointments.sort((a, b) => a.time.localeCompare(b.time)).map((app, idx) => (
+                            <div key={app.id} className="flex items-center justify-between p-3 rounded-md bg-muted/10 hover:bg-muted/20 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono text-sm font-bold text-primary bg-primary/10 px-2 py-1 rounded">
+                                  {app.time}
+                                </span>
+                                <div>
+                                  <p className="font-medium text-sm">{app.patientName}</p>
+                                  <p className="text-xs text-muted-foreground">{app.type}</p>
+                                </div>
+                              </div>
+                              <Badge variant={(app.status === 'scheduled' || app.status === 'in-progress') ? 'default' : 'secondary'} className="text-xs capitalize">
+                                {app.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {sortedDates.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="text-lg">No upcoming appointments found.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Search Filter is applied only to the list view or details, technically filteredAppointments logic might need adjustment if using search in Overview but Overview structure is different. 
+          For now search applies to 'appointments' state which is Daily View. 
+          If user wants search in Upcoming, we can add it, but request didn't specify. */}
 
       <AppointmentDialog
         open={dialogOpen}
