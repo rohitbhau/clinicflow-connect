@@ -1,5 +1,6 @@
 
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { Doctor } from '../models/Doctor';
 import { Attendance } from '../models/Attendance';
 import { ApiError } from '../middleware/errorHandler';
@@ -12,8 +13,9 @@ const getDoctor = async (userId: string) => {
     return doctor;
 };
 
-export const checkIn = async (req: Request, res: Response) => {
+export const checkIn = async (req: AuthRequest, res: Response) => {
     try {
+        if (!req.user) throw new ApiError('User not authenticated', 401);
         const doctor = await getDoctor(req.user.id);
 
         const today = new Date();
@@ -47,8 +49,9 @@ export const checkIn = async (req: Request, res: Response) => {
     }
 };
 
-export const checkOut = async (req: Request, res: Response) => {
+export const checkOut = async (req: AuthRequest, res: Response) => {
     try {
+        if (!req.user) throw new ApiError('User not authenticated', 401);
         const doctor = await getDoctor(req.user.id);
 
         const today = new Date();
@@ -87,8 +90,9 @@ export const checkOut = async (req: Request, res: Response) => {
     }
 };
 
-export const getStatus = async (req: Request, res: Response) => {
+export const getStatus = async (req: AuthRequest, res: Response) => {
     try {
+        if (!req.user) throw new ApiError('User not authenticated', 401);
         const doctor = await getDoctor(req.user.id);
 
         const today = new Date();
@@ -116,8 +120,9 @@ export const getStatus = async (req: Request, res: Response) => {
     }
 };
 
-export const getHistory = async (req: Request, res: Response) => {
+export const getHistory = async (req: AuthRequest, res: Response) => {
     try {
+        if (!req.user) throw new ApiError('User not authenticated', 401);
         const doctor = await getDoctor(req.user.id);
 
         const history = await Attendance.find({ doctorId: doctor._id })

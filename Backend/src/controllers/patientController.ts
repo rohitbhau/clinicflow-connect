@@ -1,16 +1,17 @@
 
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import { Patient } from '../models/Patient';
 import { Hospital } from '../models/Hospital';
 import { User } from '../models/User';
 import { ApiError } from '../middleware/errorHandler';
 
-export const getPatients = async (req: Request, res: Response) => {
+export const getPatients = async (req: AuthRequest, res: Response) => {
     try {
-        let query = {};
+        let query: any = {};
 
         // If hospital admin, filter by hospital
-        if (req.user.role === 'admin' && req.user.hospitalName) {
+        if (req.user && req.user.role === 'admin' && req.user.hospitalName) {
             const hospital = await Hospital.findOne({ name: req.user.hospitalName });
             if (hospital) {
                 query = { hospitalId: hospital._id };
@@ -53,7 +54,7 @@ export const getPatients = async (req: Request, res: Response) => {
     }
 };
 
-export const getPatientById = async (req: Request, res: Response) => {
+export const getPatientById = async (req: AuthRequest, res: Response) => {
     try {
         const patient = await Patient.findById(req.params.id)
             .populate('hospitalId', 'name')
