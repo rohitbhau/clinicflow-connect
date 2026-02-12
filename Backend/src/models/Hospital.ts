@@ -68,7 +68,7 @@ const HospitalSchema = new Schema<IHospital>(
 );
 
 HospitalSchema.index({ name: 'text' });
-HospitalSchema.index({ slug: 1 });
+// HospitalSchema.index({ slug: 1 }); // Removed duplicate index
 HospitalSchema.index({ city: 1, state: 1 });
 
 export const Hospital = mongoose.model<IHospital>('Hospital', HospitalSchema);

@@ -7,7 +7,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
-  type: "doctor" | "admin";
+  type: "doctor" | "admin" | "superadmin";
   onSearch?: (query: string) => void;
 }
 
@@ -18,14 +18,14 @@ export function DashboardLayout({ children, title, subtitle, type, onSearch }: D
     <div className="min-h-screen bg-background">
       {/* Desktop Sidebar - hidden on mobile */}
       {!isMobile && <DashboardSidebar type={type} />}
-      
+
       <div className={isMobile ? "pb-20" : "pl-64"}>
         <DashboardHeader title={title} subtitle={subtitle} onSearch={onSearch} isMobile={isMobile} />
         <main className={isMobile ? "p-4" : "p-6"}>
           {children}
         </main>
       </div>
-      
+
       {/* Mobile Bottom Navigation */}
       {isMobile && <MobileBottomNav type={type} />}
     </div>

@@ -90,6 +90,6 @@ const DoctorSchema = new Schema<IDoctor>(
 DoctorSchema.index({ hospitalId: 1 });
 DoctorSchema.index({ departmentId: 1 });
 DoctorSchema.index({ specialization: 1 });
-DoctorSchema.index({ licenseNumber: 1 });
+// DoctorSchema.index({ licenseNumber: 1 }); // Removed duplicate index
 
 export const Doctor = mongoose.model<IDoctor>('Doctor', DoctorSchema);

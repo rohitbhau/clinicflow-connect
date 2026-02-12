@@ -61,7 +61,9 @@ const Login = memo(function Login() {
       });
 
       // Redirect based on role
-      if (user.role === "doctor") {
+      if (user.role === "superadmin") {
+        navigate("/superadmin");
+      } else if (user.role === "doctor" || user.role === "staff") {
         navigate("/doctor");
       } else if (user.role === "admin") {
         navigate("/admin");
@@ -96,10 +98,10 @@ const Login = memo(function Login() {
             {role === "doctor" ? "Doctor Login" : role === "admin" ? "Admin Login" : "Welcome back"}
           </CardTitle>
           <CardDescription className="text-sm">
-            {role === "doctor" 
-              ? "Sign in to access your dashboard" 
-              : role === "admin" 
-                ? "Sign in to access admin panel" 
+            {role === "doctor"
+              ? "Sign in to access your dashboard"
+              : role === "admin"
+                ? "Sign in to access admin panel"
                 : "Enter your credentials to continue"
             }
           </CardDescription>
@@ -150,9 +152,9 @@ const Login = memo(function Login() {
                 <p className="text-xs text-destructive">{errors.password.message}</p>
               )}
             </div>
-            <Button 
-              className="h-12 w-full text-base font-semibold" 
-              type="submit" 
+            <Button
+              className="h-12 w-full text-base font-semibold"
+              type="submit"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -176,8 +178,8 @@ const Login = memo(function Login() {
               Sign up
             </Link>
           </div>
-          <Link 
-            to="/forgot-password" 
+          <Link
+            to="/forgot-password"
             className="text-xs text-muted-foreground hover:text-primary hover:underline"
           >
             Forgot your password?

@@ -1,32 +1,74 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Users, Search, Phone, Mail, Stethoscope, Calendar, Eye } from "lucide-react";
-import { useData } from "@/context/DataContext";
+import { Users, Search, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Patient } from "@/data/mockData";
+import api from "@/lib/api";
+
+interface Patient {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  hospitalName: string;
+  hospitalId: string;
+  doctorName: string;
+  lastVisit: string;
+  gender: string;
+  age: number;
+  totalVisits: number;
+}
 
 export default function AdminPatientsPage() {
-  const { patients, doctors, hospitals } = useData();
   const isMobile = useIsMobile();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await api.get('/patients');
+        if (response.data.success) {
+          setPatients(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch patients", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatients();
+  }, []);
+
   const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    p.email.toLowerCase().includes(search.toLowerCase()) ||
+    p.phone.includes(search)
   );
 
   const handleViewDetails = (p: Patient) => { setSelectedPatient(p); setDetailsOpen(true); };
-  const getHospitalName = (id: string) => hospitals.find((h) => h.id === id)?.name || "Unknown";
+
+  if (loading) {
+    return (
+      <DashboardLayout type="admin" title="Patients" subtitle="Loading...">
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout type="admin" title="Patients" subtitle="All patients">
+    <DashboardLayout type="admin" title="Patients" subtitle="All registered patients">
       <div className="flex gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -65,7 +107,7 @@ export default function AdminPatientsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {!isMobile && <span className="text-xs text-muted-foreground">{patient.doctorName}</span>}
+                  {!isMobile && <span className="text-xs text-muted-foreground">{patient.hospitalName}</span>}
                   <Badge variant="outline" className={`text-[10px] ${patient.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground"}`}>
                     {patient.status === "active" ? "Active" : "Inactive"}
                   </Badge>
@@ -99,8 +141,7 @@ export default function AdminPatientsPage() {
                   { l: "Phone", v: selectedPatient.phone },
                   { l: "Age", v: `${selectedPatient.age} years` },
                   { l: "Gender", v: selectedPatient.gender },
-                  { l: "Doctor", v: selectedPatient.doctorName },
-                  { l: "Hospital", v: getHospitalName(selectedPatient.hospitalId) },
+                  { l: "Hospital", v: selectedPatient.hospitalName },
                   { l: "Visits", v: selectedPatient.totalVisits },
                   { l: "Last Visit", v: selectedPatient.lastVisit },
                 ].map(f => (

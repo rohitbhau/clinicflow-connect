@@ -212,7 +212,7 @@ export default function BookAppointment() {
                       </FormControl>
                       <SelectContent>
                         {doctors.map((doc: any) => (
-                          <SelectItem key={doc._id} value={doc._id}>
+                          <SelectItem key={doc._id} value={doc._id} className="capitalize">
                             Dr. {doc.firstName} {doc.lastName} - {doc.specialization}
                           </SelectItem>
                         ))}

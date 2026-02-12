@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import { Appointment } from '../models/Appointment';
 import { Doctor } from '../models/Doctor';
+import { Hospital } from '../models/Hospital';
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/errorHandler';
 
@@ -169,6 +170,82 @@ export const getQueueStatus = async (req: Request, res: Response): Promise<void>
     }
 };
 
+export const getAllQueuesStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { hospitalId } = req.params;
+
+        // Get all doctors for this hospital
+        const doctors = await Doctor.find({ hospitalId });
+
+        if (!doctors || doctors.length === 0) {
+            res.json({
+                success: true,
+                data: {
+                    queues: [],
+                    hospitalId
+                }
+            });
+            return;
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Fetch queue status for all doctors
+        const queues = await Promise.all(doctors.map(async (doctor) => {
+            // Fetch Current Serving
+            const currentAppointment = await Appointment.findOne({
+                doctorId: doctor._id,
+                status: 'in-progress',
+                appointmentDate: { $gte: startOfDay, $lte: endOfDay }
+            }).sort({ updatedAt: -1 });
+
+            // Fetch Waiting Queue
+            const waitingAppointments = await Appointment.find({
+                doctorId: doctor._id,
+                status: 'scheduled',
+                appointmentDate: { $gte: startOfDay, $lte: endOfDay }
+            }).sort({ tokenNumber: 1 }).limit(10);
+
+            return {
+                doctor: {
+                    id: doctor._id,
+                    name: `${doctor.firstName} ${doctor.lastName}`,
+                    specialization: doctor.specialization
+                },
+                current: currentAppointment ? {
+                    tokenNumber: currentAppointment.tokenNumber,
+                    patientName: currentAppointment.patientName || "Unknown",
+                    _id: currentAppointment._id
+                } : null,
+                queue: waitingAppointments.map(app => ({
+                    tokenNumber: app.tokenNumber,
+                    patientName: app.patientName || "Unknown",
+                    _id: app._id
+                })),
+                queueCount: waitingAppointments.length
+            };
+        }));
+
+        const hospital = await Hospital.findById(hospitalId);
+
+        res.json({
+            success: true,
+            data: {
+                queues,
+                hospitalId,
+                hospitalName: hospital ? hospital.name : "Hospital Queue"
+            }
+        });
+
+    } catch (error) {
+        logger.error('Get all queues status error:', error);
+        throw error;
+    }
+};
+
 export const updateStatus = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
@@ -229,6 +306,7 @@ export const updateAppointmentDetails = async (req: Request, res: Response): Pro
 export const appointmentController = {
     bookAppointment,
     getQueueStatus,
+    getAllQueuesStatus,
     updateStatus,
     updateAppointmentDetails
 };

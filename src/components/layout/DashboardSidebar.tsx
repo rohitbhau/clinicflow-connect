@@ -9,6 +9,7 @@ import {
   Activity,
   LogOut,
   Stethoscope,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ interface NavItem {
 const doctorNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/doctor" },
   { label: "Appointments", icon: Calendar, href: "/doctor/appointments" },
+  { label: "Attendance", icon: UserCheck, href: "/doctor/attendance" },
   { label: "QR & Link", icon: QrCode, href: "/doctor/share" },
 ];
 
@@ -30,15 +32,22 @@ const adminNavItems: NavItem[] = [
   { label: "Doctors", icon: Stethoscope, href: "/admin/doctors" },
   { label: "Patients", icon: Users, href: "/admin/patients" },
   { label: "Activity", icon: Activity, href: "/admin/activity" },
+  { label: "QR & Link", icon: QrCode, href: "/admin/share" },
+];
+
+const superAdminNavItems: NavItem[] = [
+  { label: "Dashboard", icon: LayoutDashboard, href: "/superadmin" },
+  { label: "Hospitals", icon: Building2, href: "/superadmin/hospitals" },
+  { label: "Users", icon: Users, href: "/superadmin/users" },
 ];
 
 interface DashboardSidebarProps {
-  type: "doctor" | "admin";
+  type: "doctor" | "admin" | "superadmin";
 }
 
 export const DashboardSidebar = memo(function DashboardSidebar({ type }: DashboardSidebarProps) {
   const location = useLocation();
-  const navItems = type === "doctor" ? doctorNavItems : adminNavItems;
+  const navItems = type === "doctor" ? doctorNavItems : type === "admin" ? adminNavItems : superAdminNavItems;
 
   // Get user from localStorage
   const getUserFromStorage = () => {
@@ -54,8 +63,8 @@ export const DashboardSidebar = memo(function DashboardSidebar({ type }: Dashboa
   };
 
   const user = getUserFromStorage();
-  const userName = user?.name || (type === "doctor" ? "Dr. John Smith" : "Admin User");
-  const userRole = type === "doctor" ? user?.hospitalName || "Doctor" : "Super Admin";
+  const userName = user?.name || (type === "doctor" ? "Dr. John Smith" : type === "admin" ? "Admin User" : "Super Admin");
+  const userRole = type === "doctor" ? user?.hospitalName || "Doctor" : type === "admin" ? "Hospital Admin" : "Super Administrator";
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 gradient-sidebar border-r border-sidebar-border hidden md:block">
@@ -70,7 +79,7 @@ export const DashboardSidebar = memo(function DashboardSidebar({ type }: Dashboa
               ClinicMG
             </h1>
             <p className="text-xs text-sidebar-foreground/60">
-              {type === "doctor" ? "Doctor Portal" : "Admin Panel"}
+              {type === "doctor" ? "Doctor Portal" : type === "admin" ? "Admin Panel" : "Super Admin"}
             </p>
           </div>
         </div>

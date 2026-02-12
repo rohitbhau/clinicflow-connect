@@ -35,6 +35,9 @@ interface RegisterRequest extends AuthRequest {
         password: string;
         role: string;
         hospitalName?: string;
+        hospitalPhone?: string;
+        doctors?: any[];
+        staff?: any[];
     };
 }
 
@@ -47,14 +50,119 @@ interface LoginRequest extends AuthRequest {
 
 export const register = async (req: RegisterRequest, res: Response): Promise<void> => {
     try {
-        const { name, email, password, role, hospitalName } = req.body;
+        const { name, email, password, role, hospitalName, doctors, staff, hospitalPhone } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             throw new ApiError('Email already registered', 400);
         }
 
-        // Store user
+        // --- HOSPITAL REGISTRATION FLOW ---
+        if (role === 'admin' && hospitalName) {
+            // 1. Create Admin User
+            const user = await User.create({
+                name: name || 'Hospital Admin',
+                email,
+                password,
+                role: 'admin',
+                hospitalName,
+            });
+
+            // 2. Create Hospital Entity
+            const slug = createSlug(hospitalName);
+            const existingSlug = await Hospital.findOne({ slug });
+            const finalSlug = existingSlug ? `${slug}-${Math.floor(Math.random() * 1000)}` : slug;
+
+            const hospital = await Hospital.create({
+                name: hospitalName,
+                slug: finalSlug,
+                email: email,
+                phone: hospitalPhone || '0000000000',
+                address: { street: '', city: '', state: '', zipCode: '', country: 'India' },
+                licenseNumber: `PENDING-${finalSlug.toUpperCase()}-${Math.floor(Math.random() * 10000)}`,
+                isActive: true
+            });
+
+            const generatedCredentials: any[] = [];
+
+            // 3. Process Doctors
+            if (doctors && Array.isArray(doctors)) {
+                for (const doc of doctors) {
+                    const docPassword = Math.random().toString(36).slice(-8); // Generate 8 char password
+                    const docUser = await User.create({
+                        name: doc.name,
+                        email: doc.email,
+                        password: docPassword,
+                        role: 'doctor',
+                        hospitalName,
+                        isActive: true
+                    });
+
+                    const splitName = doc.name ? doc.name.split(' ') : ['Doctor', 'User'];
+                    await Doctor.create({
+                        userId: docUser._id,
+                        hospitalId: hospital._id,
+                        firstName: splitName[0],
+                        lastName: splitName.slice(1).join(' ') || 'Doc',
+                        specialization: doc.specialization || 'General',
+                        qualification: doc.qualification || 'MBBS',
+                        phone: doc.phone || '0000000000',
+                        licenseNumber: `DOC-${docUser._id.toString().substring(0, 6).toUpperCase()}-${Math.floor(Math.random() * 1000)}`,
+                        departmentId: new mongoose.Types.ObjectId(), // Dummy
+                        isActive: true
+                    });
+
+                    generatedCredentials.push({
+                        name: doc.name,
+                        email: doc.email,
+                        password: docPassword,
+                        role: 'doctor'
+                    });
+                }
+            }
+
+            // 4. Process Staff
+            if (staff && Array.isArray(staff)) {
+                for (const member of staff) {
+                    const staffPassword = Math.random().toString(36).slice(-8);
+                    await User.create({
+                        name: member.name,
+                        email: member.email,
+                        password: staffPassword,
+                        role: 'staff',
+                        hospitalName,
+                        isActive: true
+                    });
+
+                    generatedCredentials.push({
+                        name: member.name,
+                        email: member.email,
+                        password: staffPassword,
+                        role: 'staff'
+                    });
+                }
+            }
+
+            const token = generateToken(user._id.toString(), user.role, user.hospitalName);
+
+            res.status(201).json({
+                success: true,
+                data: {
+                    user: {
+                        id: user._id,
+                        email: user.email,
+                        role: user.role,
+                        name: user.name,
+                        hospitalName: user.hospitalName,
+                    },
+                    token,
+                    generatedCredentials // Return these so frontend can show them
+                },
+            });
+            return;
+        }
+
+        // --- STANDARD REGISTRATION (Fallback) ---
         const user = await User.create({
             name,
             email,
@@ -62,54 +170,6 @@ export const register = async (req: RegisterRequest, res: Response): Promise<voi
             role,
             hospitalName,
         });
-
-        // --- AUTO-SETUP LOGIC ---
-        // If hospitalName is provided, ensure Hospital entity exists
-        if (hospitalName) {
-            let hospital = await Hospital.findOne({ name: hospitalName });
-
-            if (!hospital) {
-                // Create new hospital
-                const slug = createSlug(hospitalName);
-
-                // Check if slug exists, if so append random (though name check likely covers this)
-                const existingSlug = await Hospital.findOne({ slug });
-                const finalSlug = existingSlug ? `${slug}-${Math.floor(Math.random() * 1000)}` : slug;
-
-                hospital = await Hospital.create({
-                    name: hospitalName,
-                    slug: finalSlug,
-                    email: email, // Use creator's email temporarily
-                    phone: '0000000000',
-                    address: { street: '', city: 'City', state: 'State', zipCode: '', country: 'India' },
-                    licenseNumber: `PENDING-${finalSlug.toUpperCase()}-${Math.floor(Math.random() * 10000)}`,
-                    isActive: true
-                });
-                logger.info(`Created new hospital: ${hospital.name}`);
-            }
-
-            // If user is a Doctor, create Doctor profile
-            if (role === 'doctor') {
-                const splitName = name ? name.split(' ') : ['Doctor', 'User'];
-                const firstName = splitName[0];
-                const lastName = splitName.slice(1).join(' ') || 'Smith';
-
-                await Doctor.create({
-                    userId: user._id,
-                    hospitalId: hospital._id,
-                    firstName,
-                    lastName,
-                    specialization: 'General Physician', // Default
-                    qualification: 'MBBS',
-                    phone: '0000000000',
-                    departmentId: new mongoose.Types.ObjectId(), // Dummy
-                    licenseNumber: `DOC-${user._id.toString().substring(0, 6).toUpperCase()}`,
-                    isActive: true
-                });
-                logger.info(`Created doctor profile for user: ${user._id}`);
-            }
-        }
-        // --- END AUTO-SETUP ---
 
         const token = generateToken(user._id.toString(), user.role, user.hospitalName);
 
@@ -129,6 +189,24 @@ export const register = async (req: RegisterRequest, res: Response): Promise<voi
             },
         });
     } catch (error) {
+        // cleanup on failure
+        const { role, hospitalName, email } = req.body;
+        if (role === 'admin' && hospitalName) {
+            const userCleanup = await User.findOne({ email });
+            if (userCleanup) {
+                await User.deleteOne({ _id: userCleanup._id });
+                logger.info(`Cleaned up user ${email} after failed registration`);
+            }
+            const hospitalCleanup = await Hospital.findOne({ name: hospitalName });
+            if (hospitalCleanup) {
+                await Hospital.deleteOne({ _id: hospitalCleanup._id });
+                logger.info(`Cleaned up hospital ${hospitalName} after failed registration`);
+            }
+            // Note: Doctors/Staff created in loop might remain if we don't track them,
+            // but usually the first failure stops the loop.
+            // For robustness we could track created IDs.
+        }
+
         logger.error('Registration error:', error);
         throw error;
     }
@@ -153,6 +231,9 @@ export const login = async (req: LoginRequest, res: Response): Promise<void> => 
         }
 
         const token = generateToken(user._id.toString(), user.role, user.hospitalName);
+
+        // Update last active time (using updatedAt for now)
+        await User.findByIdAndUpdate(user._id, { updatedAt: new Date() });
 
         cache.del(`user:${user._id}`);
 

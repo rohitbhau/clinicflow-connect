@@ -34,19 +34,25 @@ const adminNavItems: NavItem[] = [
   { label: "Activity", icon: Activity, href: "/admin/activity" },
 ];
 
+const superAdminNavItems: NavItem[] = [
+  { label: "Home", icon: LayoutDashboard, href: "/superadmin" },
+  { label: "Hospitals", icon: Building2, href: "/superadmin/hospitals" },
+  { label: "Users", icon: Users, href: "/superadmin/users" },
+];
+
 interface MobileBottomNavProps {
-  type: "doctor" | "admin";
+  type: "doctor" | "admin" | "superadmin";
 }
 
 export const MobileBottomNav = memo(function MobileBottomNav({ type }: MobileBottomNavProps) {
   const location = useLocation();
-  const navItems = type === "doctor" ? doctorNavItems : adminNavItems;
+  const navItems = type === "doctor" ? doctorNavItems : type === "admin" ? adminNavItems : superAdminNavItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/98 backdrop-blur-lg md:hidden">
       <div className="flex items-stretch safe-area-bottom">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.href || 
+          const isActive = location.pathname === item.href ||
             (item.href !== "/doctor" && item.href !== "/admin" && location.pathname.startsWith(item.href));
           return (
             <Link

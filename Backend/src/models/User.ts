@@ -4,11 +4,12 @@ import bcrypt from 'bcryptjs';
 export interface IUser extends Document {
     email: string;
     password: string;
+    tempPassword?: string;
     name: string;
     experience: string;
     profileImage: string;
     hospitalImage: string;
-    role: 'admin' | 'doctor' | 'staff' | 'patient';
+    role: 'superadmin' | 'admin' | 'doctor' | 'staff' | 'patient';
     hospitalName: string;
     isActive: boolean;
     createdAt: Date;
@@ -31,6 +32,10 @@ const UserSchema = new Schema<IUser>(
             minlength: 6,
             select: false,
         },
+        tempPassword: {
+            type: String,
+            select: true, // we want this visible for admin panel
+        },
         name: {
             type: String,
             trim: true,
@@ -50,13 +55,13 @@ const UserSchema = new Schema<IUser>(
         },
         role: {
             type: String,
-            enum: ['admin', 'doctor', 'staff', 'patient'],
+            enum: ['superadmin', 'admin', 'doctor', 'staff', 'patient'],
             default: 'patient',
         },
         hospitalName: {
             type: String,
             required: function (this: IUser) {
-                return this.role !== 'patient';
+                return this.role !== 'patient' && this.role !== 'superadmin';
             },
             trim: true,
         },
@@ -70,7 +75,7 @@ const UserSchema = new Schema<IUser>(
     }
 );
 
-UserSchema.index({ email: 1 });
+// UserSchema.index({ email: 1 }); // Removed duplicate index
 UserSchema.index({ hospitalName: 1, role: 1 });
 
 UserSchema.pre('save', async function (next) {

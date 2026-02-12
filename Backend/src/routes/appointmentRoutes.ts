@@ -10,6 +10,7 @@ const router: Router = Router();
 // Public route for booking
 router.post('/book', asyncHandler(appointmentController.bookAppointment));
 router.get('/queue/:doctorId', asyncHandler(appointmentController.getQueueStatus));
+router.get('/queue/hospital/:hospitalId', asyncHandler(appointmentController.getAllQueuesStatus));
 
 // Protected routes
 router.patch('/:id/status', authenticate, asyncHandler(appointmentController.updateStatus));

@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Moon, Sun, Monitor, ArrowRight, Activity, LogOut, ChevronRight } from "lucide-react";
+import { Moon, Sun, Monitor, ArrowRight, Activity, LogOut, ChevronRight, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light");
+  const [themeColor, setThemeColor] = useState(() => localStorage.getItem("themeColor") || "default");
   const [notifications, setNotifications] = useState(() => localStorage.getItem("notifications") === "true");
   const [autoapprove, setAutoapprove] = useState(() => localStorage.getItem("autoapprove") === "true");
   const [duration, setDuration] = useState(() => localStorage.getItem("duration") || "15");
@@ -29,12 +30,23 @@ export default function SettingsPage() {
     root.classList.add(selectedTheme);
   };
 
+  const applyColor = (color: string) => {
+    const root = window.document.documentElement;
+    root.classList.remove("theme-blue", "theme-purple", "theme-orange", "theme-red");
+    if (color !== "default") {
+      root.classList.add(`theme-${color}`);
+    }
+    setThemeColor(color);
+  };
+
   const handleSave = () => {
     localStorage.setItem("theme", theme);
     localStorage.setItem("notifications", String(notifications));
     localStorage.setItem("autoapprove", String(autoapprove));
     localStorage.setItem("duration", duration);
+    localStorage.setItem("themeColor", themeColor);
     applyTheme(theme);
+    applyColor(themeColor);
     toast({ title: "Settings saved", description: "Your preferences have been updated." });
   };
 
@@ -61,15 +73,36 @@ export default function SettingsPage() {
               ].map((t) => (
                 <button
                   key={t.value}
-                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all touch-target sm:p-4 ${
-                    theme === t.value ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
-                  }`}
+                  className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all touch-target sm:p-4 ${theme === t.value ? "border-primary bg-primary/5" : "border-border hover:bg-secondary/50"
+                    }`}
                   onClick={() => { setTheme(t.value); applyTheme(t.value); }}
                 >
                   <t.icon className={`h-6 w-6 ${t.color}`} />
                   <span className="text-xs font-medium sm:text-sm">{t.label}</span>
                 </button>
               ))}
+            </div>
+
+            {/* Accent Color */}
+            <div className="pt-4 border-t mt-4">
+              <Label className="text-sm font-medium mb-3 block">Accent Color</Label>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { name: "default", color: "bg-teal-600" },
+                  { name: "blue", color: "bg-blue-600" },
+                  { name: "purple", color: "bg-purple-600" },
+                  { name: "orange", color: "bg-orange-500" },
+                  { name: "red", color: "bg-rose-600" },
+                ].map((c) => (
+                  <button
+                    key={c.name}
+                    onClick={() => applyColor(c.name)}
+                    className={`h-10 w-10 rounded-full ${c.color} transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background flex items-center justify-center ${themeColor === c.name ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                  >
+                    {themeColor === c.name && <Check className="h-5 w-5 text-white" />}
+                  </button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

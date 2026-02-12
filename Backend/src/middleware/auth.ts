@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
         id: string;
         role: string;
         hospitalId?: string;
+        hospitalName?: string;
     };
 }
 
@@ -29,6 +30,7 @@ export const authenticate = (
             id: string;
             role: string;
             hospitalId?: string;
+            hospitalName?: string;
         };
 
         req.user = decoded;
