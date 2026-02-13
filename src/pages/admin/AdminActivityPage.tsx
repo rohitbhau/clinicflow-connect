@@ -4,7 +4,6 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Users, Clock, TrendingUp, Calendar } from "lucide-react";
-import { useData } from "@/context/DataContext";
 import api from "@/lib/api";
 
 export default function AdminActivityPage() {
@@ -28,111 +27,72 @@ export default function AdminActivityPage() {
   }, []);
 
   const onlineUsers = stats?.online || 0;
-  // stats.loginActivity length might be small (limit 5 in backend). 
-  // Maybe I should increase limit in backend or just use what I have.
-  // Backend `getHospitalStats` limits to 5.
   const recentActivity = stats?.loginActivity || [];
   const todayAppointments = stats?.appointments || 0;
-
-  // Placeholder for unavailable stats
   const todayLogins = recentActivity.length;
-  const completedToday = 0; // Backend doesn't provide this yet
   const hospitalName = stats?.hospital?.name || "Hospital";
 
   return (
-    <DashboardLayout type="admin" title="Activity" subtitle="Monitor daily login and activity reports">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatsCard
-          title="Currently Online"
-          value={onlineUsers}
-          change="Active now"
-          changeType="positive"
-          icon={Activity}
-          iconColor="success"
-        />
-        <StatsCard
-          title="Recent Logins"
-          value={todayLogins}
-          change="Last 5 logins"
-          changeType="neutral"
-          icon={Users}
-          iconColor="primary"
-        />
-        <StatsCard
-          title="Appointments Today"
-          value={todayAppointments}
-          change="Scheduled"
-          changeType="neutral"
-          icon={Calendar}
-          iconColor="info"
-        />
-        <StatsCard
-          title="System Status"
-          value="Online"
-          change="Stable"
-          changeType="positive"
-          icon={Clock}
-          iconColor="warning"
-        />
+    <DashboardLayout type="admin" title="Activity" subtitle="Monitor daily activity">
+      {/* Stats Grid - Scrollable on mobile */}
+      <div className="mb-4 sm:mb-6">
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
+          {[
+            { title: "Online", value: onlineUsers, change: "Active now", type: "positive" as const, icon: Activity, color: "success" as const },
+            { title: "Logins", value: todayLogins, change: "Last 5", type: "neutral" as const, icon: Users, color: "primary" as const },
+            { title: "Appointments", value: todayAppointments, change: "Scheduled", type: "neutral" as const, icon: Calendar, color: "info" as const },
+            { title: "Status", value: "Online" as any, change: "Stable", type: "positive" as const, icon: Clock, color: "warning" as const },
+          ].map((s) => (
+            <div key={s.title} className="flex-shrink-0 w-[150px] sm:w-auto">
+              <StatsCard title={s.title} value={s.value} change={s.change} changeType={s.type} icon={s.icon} iconColor={s.color} />
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 sm:gap-6">
         {/* Live Activity Feed */}
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Activity className="h-5 w-5 text-primary" />
               Live Activity Feed
             </CardTitle>
-            <CardDescription>Real-time login and activity updates</CardDescription>
+            {loading && <CardDescription>Loading...</CardDescription>}
           </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="py-8 text-center text-muted-foreground">Loading activity...</div>
+          <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+            {recentActivity.length === 0 ? (
+              <div className="text-center text-muted-foreground py-6 sm:py-8">No recent activity</div>
             ) : (
-              <div className="space-y-4">
-                {recentActivity.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-4">No recent activity</div>
-                ) : (
-                  recentActivity.map((activity: any, index: number) => (
-                    <div
-                      key={activity.id || index}
-                      className="flex items-center justify-between py-3 border-b border-border last:border-0 animate-fade-in"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <span
-                            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${activity.status === "online" ? "bg-success" : "bg-muted-foreground"
-                              }`}
-                          />
+              <div className="space-y-3">
+                {recentActivity.map((activity: any, index: number) => (
+                  <div
+                    key={activity.id || index}
+                    className="flex items-center justify-between py-2.5 border-b border-border last:border-0 animate-fade-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                      <div className="relative flex-shrink-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary sm:h-10 sm:w-10">
+                          <Users className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-card-foreground">{activity.userName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(activity.role || 'user').charAt(0).toUpperCase() + (activity.role || 'user').slice(1)} • {hospitalName}
-                          </p>
-                        </div>
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${activity.status === "online" ? "bg-success" : "bg-muted-foreground"}`} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">{activity.loginTime}</span>
-                        <Badge
-                          variant="outline"
-                          className={activity.status === "online"
-                            ? "bg-success/10 text-success border-success/20"
-                            : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {activity.status}
-                        </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-card-foreground truncate sm:text-sm">{activity.userName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate sm:text-xs">
+                          {(activity.role || 'user').charAt(0).toUpperCase() + (activity.role || 'user').slice(1)} • {hospitalName}
+                        </p>
                       </div>
                     </div>
-                  ))
-                )}
+                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2 sm:gap-2">
+                      <span className="text-[10px] text-muted-foreground sm:text-xs">{activity.loginTime}</span>
+                      <Badge variant="outline" className={`text-[10px] ${activity.status === "online" ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground"}`}>
+                        {activity.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
@@ -140,28 +100,25 @@ export default function AdminActivityPage() {
 
         {/* Daily Summary */}
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <TrendingUp className="h-5 w-5 text-primary" />
               Daily Summary
             </CardTitle>
-            <CardDescription>Today's activity overview</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Summary Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg bg-primary/5 p-4 text-center">
-                  <p className="font-display text-3xl font-bold text-primary">{stats?.doctors || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total Doctors</p>
+          <CardContent className="px-3 pb-3 sm:px-6 sm:pb-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="rounded-lg bg-primary/5 p-3 text-center sm:p-4">
+                  <p className="font-display text-2xl font-bold text-primary sm:text-3xl">{stats?.doctors || 0}</p>
+                  <p className="text-xs text-muted-foreground sm:text-sm">Total Doctors</p>
                 </div>
-                <div className="rounded-lg bg-success/5 p-4 text-center">
-                  <p className="font-display text-3xl font-bold text-success">{stats?.patients || 0}</p>
-                  <p className="text-sm text-muted-foreground">Total Patients</p>
+                <div className="rounded-lg bg-success/5 p-3 text-center sm:p-4">
+                  <p className="font-display text-2xl font-bold text-success sm:text-3xl">{stats?.patients || 0}</p>
+                  <p className="text-xs text-muted-foreground sm:text-sm">Total Patients</p>
                 </div>
               </div>
 
-              {/* Activity Timeline - Static for now as we don't have timeline events in API yet */}
               <div>
                 <h4 className="text-sm font-medium text-card-foreground mb-3">Activity Timeline</h4>
                 <div className="space-y-3">
@@ -169,31 +126,30 @@ export default function AdminActivityPage() {
                     { time: "09:00 AM", event: "System Start", count: "Auto" },
                     { time: "Now", event: "Real-time monitoring", count: "Active" },
                   ].map((item, index) => (
-                    <div key={index} className="flex items-center gap-3 text-sm">
-                      <span className="text-muted-foreground w-20">{item.time}</span>
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                      <span className="text-card-foreground">{item.event}</span>
-                      <Badge variant="outline" className="ml-auto">{item.count}</Badge>
+                    <div key={index} className="flex items-center gap-2 text-sm sm:gap-3">
+                      <span className="text-muted-foreground w-16 text-xs flex-shrink-0 sm:w-20 sm:text-sm">{item.time}</span>
+                      <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                      <span className="text-card-foreground text-xs flex-1 truncate sm:text-sm">{item.event}</span>
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 sm:text-xs">{item.count}</Badge>
                     </div>
                   ))}
-                  <div className="text-xs text-muted-foreground italic mt-2">Detailed timeline events coming soon</div>
+                  <div className="text-xs text-muted-foreground italic mt-2">Detailed timeline coming soon</div>
                 </div>
               </div>
 
-              {/* Quick Stats */}
-              <div className="rounded-lg bg-secondary/50 p-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="rounded-lg bg-secondary/50 p-3 sm:p-4">
+                <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
                   <div>
-                    <p className="font-display text-xl font-bold text-info">99.9%</p>
-                    <p className="text-xs text-muted-foreground">Uptime</p>
+                    <p className="font-display text-lg font-bold text-info sm:text-xl">99.9%</p>
+                    <p className="text-[10px] text-muted-foreground sm:text-xs">Uptime</p>
                   </div>
                   <div>
-                    <p className="font-display text-xl font-bold text-warning">Active</p>
-                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="font-display text-lg font-bold text-warning sm:text-xl">Active</p>
+                    <p className="text-[10px] text-muted-foreground sm:text-xs">Status</p>
                   </div>
                   <div>
-                    <p className="font-display text-xl font-bold text-success">0</p>
-                    <p className="text-xs text-muted-foreground">Errors</p>
+                    <p className="font-display text-lg font-bold text-success sm:text-xl">0</p>
+                    <p className="text-[10px] text-muted-foreground sm:text-xs">Errors</p>
                   </div>
                 </div>
               </div>
