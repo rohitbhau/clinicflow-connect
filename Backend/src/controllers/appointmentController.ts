@@ -5,6 +5,7 @@ import { Doctor } from '../models/Doctor';
 import { Hospital } from '../models/Hospital';
 import { logger } from '../utils/logger';
 import { ApiError } from '../middleware/errorHandler';
+import { DoctorLeave } from '../models/DoctorLeave';
 
 // Helper to find doctor by ID or User ID
 const findDoctor = async (id: string) => {
@@ -55,6 +56,39 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
         const firstNameInitial = doctor.firstName ? doctor.firstName.charAt(0).toUpperCase() : '';
         const lastNameInitial = doctor.lastName ? doctor.lastName.charAt(0).toUpperCase() : '';
         const doctorInitials = (firstNameInitial + lastNameInitial) || 'DR';
+
+        // Check for doctor leave / blocked dates
+        const leaveDate = new Date(date);
+        leaveDate.setHours(0, 0, 0, 0);
+
+        const leave = await DoctorLeave.findOne({
+            doctorId: doctor._id,
+            date: leaveDate,
+        });
+
+        if (leave) {
+            if (leave.type === 'full-day') {
+                throw new ApiError('Doctor is not available on this date. Please choose a different date.', 400);
+            }
+            if (leave.type === 'slot' && leave.blockedSlots.includes(time)) {
+                throw new ApiError('This time slot is blocked by the doctor. Please choose a different slot.', 400);
+            }
+        }
+
+        // Check for max appointments per slot
+        const maxAppointments = doctor.maxAppointmentsPerSlot || 5;
+
+        // Check how many appointments already exist for this slot
+        const existingAppointmentsCount = await Appointment.countDocuments({
+            doctorId: doctor._id,
+            appointmentDate: new Date(date),
+            startTime: time,
+            status: { $ne: 'cancelled' }
+        });
+
+        if (existingAppointmentsCount >= maxAppointments) {
+            throw new ApiError('Appointment slot is already full. Please choose a different slot.', 400);
+        }
 
         // Count appointments for this doctor on this day
         const startOfDay = new Date(date);

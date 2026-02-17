@@ -173,8 +173,58 @@ export const getPatients = async (req: AuthRequest, res: Response): Promise<void
     }
 };
 
+export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const doctor = await Doctor.findOne({ userId });
+
+        if (!doctor) {
+            throw new ApiError('Doctor profile not found', 404);
+        }
+
+        res.json({
+            success: true,
+            data: doctor
+        });
+    } catch (error) {
+        logger.error('Get doctor profile error:', error);
+        throw error;
+    }
+};
+
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        const updateData = req.body;
+
+        // Prevent updating critical fields directly if needed, for now allow updates
+        // Especially maxAppointmentsPerSlot
+
+        const doctor = await Doctor.findOneAndUpdate(
+            { userId },
+            { $set: updateData },
+            { new: true, runValidators: true }
+        );
+
+        if (!doctor) {
+            throw new ApiError('Doctor profile not found', 404);
+        }
+
+        res.json({
+            success: true,
+            data: doctor,
+            message: 'Profile updated successfully'
+        });
+    } catch (error) {
+        logger.error('Update doctor profile error:', error);
+        throw error;
+    }
+};
+
 export const doctorController = {
     getDashboardStats,
     getUpcomingAppointments,
-    getPatients
+    getPatients,
+    getProfile,
+    updateProfile
 };

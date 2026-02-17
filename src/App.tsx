@@ -19,6 +19,7 @@ import StaffPage from "./pages/doctor/StaffPage";
 import SharePage from "./pages/doctor/SharePage";
 import SettingsPage from "./pages/doctor/SettingsPage";
 import AttendancePage from "./pages/doctor/AttendancePage";
+import LeavePage from "./pages/doctor/LeavePage";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -86,6 +87,7 @@ const App = () => {
               <Route path="/doctor/finance" element={<FinancePage />} />
               <Route path="/doctor/staff" element={<StaffPage />} />
               <Route path="/doctor/attendance" element={<AttendancePage />} />
+              <Route path="/doctor/leave" element={<LeavePage />} />
               <Route path="/doctor/share" element={<SharePage />} />
 
               {/* Admin Routes */}

@@ -11,5 +11,7 @@ router.use(authorize('doctor'));
 router.get('/dashboard-stats', doctorController.getDashboardStats);
 router.get('/upcoming-appointments', doctorController.getUpcomingAppointments);
 router.get('/patients', doctorController.getPatients);
+router.get('/profile', doctorController.getProfile);
+router.patch('/profile', doctorController.updateProfile);
 
 export default router;

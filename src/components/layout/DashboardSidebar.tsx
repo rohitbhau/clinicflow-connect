@@ -10,6 +10,7 @@ import {
   LogOut,
   Stethoscope,
   UserCheck,
+  CalendarOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const doctorNavItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/doctor" },
   { label: "Appointments", icon: Calendar, href: "/doctor/appointments" },
   { label: "Attendance", icon: UserCheck, href: "/doctor/attendance" },
+  { label: "Leave", icon: CalendarOff, href: "/doctor/leave" },
   { label: "QR & Link", icon: QrCode, href: "/doctor/share" },
 ];
 

@@ -11,6 +11,7 @@ export interface IDoctor extends Document {
     hospitalId: mongoose.Types.ObjectId;
     departmentId: mongoose.Types.ObjectId;
     consultationFee: number;
+    maxAppointmentsPerSlot: number;
     availableSlots: {
         dayOfWeek: number;
         startTime: string;
@@ -70,6 +71,10 @@ const DoctorSchema = new Schema<IDoctor>(
         consultationFee: {
             type: Number,
             default: 0,
+        },
+        maxAppointmentsPerSlot: {
+            type: Number,
+            default: 5,
         },
         availableSlots: [{
             dayOfWeek: { type: Number, min: 0, max: 6 },

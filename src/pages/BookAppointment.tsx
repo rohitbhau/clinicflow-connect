@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Clock, User, Phone, Mail, FileText, CheckCircle, Stethoscope } from "lucide-react";
+import { Calendar, Clock, User, Phone, Mail, FileText, CheckCircle, Stethoscope, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -86,6 +86,32 @@ export default function BookAppointment() {
   }, [hospitalSlug, toast]);
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+  const [blockedDates, setBlockedDates] = useState<{ date: string; type: string; blockedSlots: string[] }[]>([]);
+
+  // Fetch blocked dates when doctor is selected
+  useEffect(() => {
+    const fetchBlockedDates = async () => {
+      if (!selectedDoctorId) {
+        setBlockedDates([]);
+        return;
+      }
+      try {
+        const res = await api.get(`/leaves/blocked/${selectedDoctorId}`);
+        if (res.data.success) {
+          setBlockedDates(res.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch blocked dates:", error);
+      }
+    };
+    fetchBlockedDates();
+  }, [selectedDoctorId]);
+
+  // Determine if selected date is fully blocked
+  const selectedDate = form.watch("date");
+  const blockedInfo = blockedDates.find((b) => b.date === selectedDate);
+  const isFullDayBlocked = blockedInfo?.type === "full-day";
+  const blockedSlotsList = blockedInfo?.type === "slot" ? blockedInfo.blockedSlots : [];
 
   // ... (schema update if needed, but not strictly required if we pass doctorId separately)
   // Actually we should add doctorId to schema OR handle it manually. Manual is fine for now.
@@ -302,20 +328,52 @@ export default function BookAppointment() {
                             <Clock className="h-4 w-4" />
                             Preferred Time
                           </FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select time slot" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {timeSlots.map((slot) => (
-                                <SelectItem key={slot} value={slot}>
-                                  {slot}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {isFullDayBlocked ? (
+                            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                              <p className="text-sm text-destructive flex items-center gap-2 font-medium">
+                                <AlertTriangle className="h-4 w-4" />
+                                Doctor is not available on this date
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Please choose a different date.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <Select onValueChange={(val) => {
+                                if (!blockedSlotsList.includes(val)) {
+                                  field.onChange(val);
+                                }
+                              }} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select time slot" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {timeSlots.map((slot) => {
+                                    const isBlocked = blockedSlotsList.includes(slot);
+                                    return (
+                                      <SelectItem
+                                        key={slot}
+                                        value={slot}
+                                        disabled={isBlocked}
+                                        className={isBlocked ? "opacity-50 line-through" : ""}
+                                      >
+                                        {slot}{isBlocked ? " (Blocked)" : ""}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              {blockedSlotsList.length > 0 && (
+                                <p className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Some slots are blocked by the doctor
+                                </p>
+                              )}
+                            </>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -370,7 +428,7 @@ export default function BookAppointment() {
                     )}
                   />
 
-                  <Button type="submit" className="w-full gradient-primary h-12 text-base font-semibold">
+                  <Button type="submit" disabled={isFullDayBlocked} className="w-full gradient-primary h-12 text-base font-semibold">
                     Book Appointment
                   </Button>
                 </form>

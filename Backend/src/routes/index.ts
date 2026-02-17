@@ -6,6 +6,7 @@ import doctorRoutes from './doctorRoutes';
 import patientRoutes from './patientRoutes';
 import attendanceRoutes from './attendanceRoutes';
 import superAdminRoutes from './superAdminRoutes';
+import leaveRoutes from './leaveRoutes';
 
 const router: Router = Router();
 
@@ -17,5 +18,6 @@ router.use('/appointments', appointmentRoutes);
 router.use('/hospitals', hospitalRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/superadmin', superAdminRoutes);
+router.use('/leaves', leaveRoutes);
 
 export default router;

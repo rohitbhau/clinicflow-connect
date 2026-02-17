@@ -12,6 +12,9 @@ import { db } from './config/database';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import routes from './routes/index';
+import uploadRoutes from './routes/uploadRoutes';
+import { uploadsDir } from './routes/uploadRoutes';
+import path from 'path';
 
 const app: express.Application = express();
 
@@ -52,6 +55,10 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/v1', routes);
+app.use('/api/v1/upload', uploadRoutes);
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadsDir));
 
 app.use((req, res, next) => {
     res.status(404).json({

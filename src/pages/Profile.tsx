@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Save, Camera } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import api from "@/lib/api";
@@ -10,16 +10,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageLoader } from "@/components/ui/page-loader";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email().readonly(),
   hospitalName: z.string().optional(),
   experience: z.string().optional(),
-  profileImage: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
-  hospitalImage: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  profileImage: z.string().optional().or(z.literal("")),
+  hospitalImage: z.string().optional().or(z.literal("")),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -33,6 +33,7 @@ const Profile = () => {
   });
 
   const profileImage = watch("profileImage");
+  const hospitalImage = watch("hospitalImage");
   const userName = watch("name");
 
   useEffect(() => {
@@ -87,17 +88,12 @@ const Profile = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-2xl mx-auto">
         {/* Avatar Section */}
         <div className="flex flex-col items-center py-4">
-          <div className="relative">
-            <Avatar className="h-20 w-20 border-2 border-primary/20">
-              <AvatarImage src={profileImage || ""} />
-              <AvatarFallback className="text-xl font-bold bg-primary/10 text-primary">
-                {(userName?.[0] || "U").toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Camera className="h-3.5 w-3.5" />
-            </div>
-          </div>
+          <ImageUpload
+            value={profileImage || ""}
+            onChange={(url) => setValue("profileImage", url)}
+            label="Upload Profile Photo"
+            variant="avatar"
+          />
           <p className="mt-3 font-display text-lg font-bold">{userName || "User"}</p>
           <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
         </div>
@@ -122,12 +118,6 @@ const Profile = () => {
               <Input id="experience" placeholder="e.g., 10 years in Cardiology" {...register("experience")}
                 className="h-11 text-base" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="profileImage" className="text-sm">Profile Image URL</Label>
-              <Input id="profileImage" placeholder="https://example.com/avatar.jpg" {...register("profileImage")}
-                className={`h-11 text-base ${errors.profileImage ? "border-destructive" : ""}`} />
-              {errors.profileImage && <p className="text-xs text-destructive">{errors.profileImage.message}</p>}
-            </div>
           </CardContent>
         </Card>
 
@@ -141,10 +131,13 @@ const Profile = () => {
               <Input id="hospitalName" {...register("hospitalName")} className="h-11 text-base" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="hospitalImage" className="text-sm">Hospital Image URL</Label>
-              <Input id="hospitalImage" placeholder="https://example.com/hospital.jpg" {...register("hospitalImage")}
-                className={`h-11 text-base ${errors.hospitalImage ? "border-destructive" : ""}`} />
-              {errors.hospitalImage && <p className="text-xs text-destructive">{errors.hospitalImage.message}</p>}
+              <Label className="text-sm">Hospital / Clinic Image</Label>
+              <ImageUpload
+                value={hospitalImage || ""}
+                onChange={(url) => setValue("hospitalImage", url)}
+                label="Upload Hospital Image"
+                variant="card"
+              />
             </div>
           </CardContent>
         </Card>

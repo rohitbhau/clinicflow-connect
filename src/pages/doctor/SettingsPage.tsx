@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import api from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -18,6 +19,22 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState(() => localStorage.getItem("notifications") === "true");
   const [autoapprove, setAutoapprove] = useState(() => localStorage.getItem("autoapprove") === "true");
   const [duration, setDuration] = useState(() => localStorage.getItem("duration") || "15");
+  const [maxAppointmentsPerSlot, setMaxAppointmentsPerSlot] = useState(5);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/doctors/profile');
+        if (res.data.success) {
+          setMaxAppointmentsPerSlot(res.data.data.maxAppointmentsPerSlot || 5);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile", error);
+        toast({ title: "Error", description: "Failed to fetch doctor profile", variant: "destructive" });
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const applyTheme = (selectedTheme: string) => {
     const root = window.document.documentElement;
@@ -39,7 +56,7 @@ export default function SettingsPage() {
     setThemeColor(color);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem("theme", theme);
     localStorage.setItem("notifications", String(notifications));
     localStorage.setItem("autoapprove", String(autoapprove));
@@ -47,7 +64,14 @@ export default function SettingsPage() {
     localStorage.setItem("themeColor", themeColor);
     applyTheme(theme);
     applyColor(themeColor);
-    toast({ title: "Settings saved", description: "Your preferences have been updated." });
+
+    try {
+      await api.patch('/doctors/profile', { maxAppointmentsPerSlot });
+      toast({ title: "Settings saved", description: "Your preferences have been updated." });
+    } catch (error) {
+      console.error("Failed to save backend settings", error);
+      toast({ title: "Error", description: "Failed to save appointment settings", variant: "destructive" });
+    }
   };
 
   const handleLogout = () => {
@@ -142,6 +166,31 @@ export default function SettingsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appointment Settings */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Appointment Limits
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Max Appointments Per Slot</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  value={maxAppointmentsPerSlot}
+                  onChange={(e) => setMaxAppointmentsPerSlot(parseInt(e.target.value) || 5)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">Default: 5</p>
+              </div>
             </div>
           </CardContent>
         </Card>
