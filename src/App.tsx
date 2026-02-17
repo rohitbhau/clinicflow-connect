@@ -34,10 +34,13 @@ import SuperAdminHospitalsPage from "./pages/superadmin/SuperAdminHospitalsPage"
 // Public Pages
 import BookAppointment from "./pages/BookAppointment";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Register from "./pages/Register";
+import RegistrationSuccess from "./pages/RegistrationSuccess";
 import Profile from "./pages/Profile";
 import QueueDisplay from "./pages/QueueDisplay";
 import HospitalQueueDisplay from "./pages/HospitalQueueDisplay";
+import SuperAdminUsersPage from "./pages/superadmin/SuperAdminUsersPage";
 
 const queryClient = new QueryClient();
 
@@ -73,7 +76,9 @@ const App = () => {
               <Route path="/" element={<SplashScreen />} />
               <Route path="/home" element={<Index />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/registration-success" element={<RegistrationSuccess />} />
 
               {/* Authenticated Routes */}
               <Route path="/profile" element={<Profile />} />
@@ -101,7 +106,7 @@ const App = () => {
               {/* Super Admin Routes */}
               <Route path="/superadmin" element={<SuperAdminDashboard />} />
               <Route path="/superadmin/hospitals" element={<SuperAdminHospitalsPage />} />
-              <Route path="/superadmin/users" element={<SuperAdminDashboard />} />
+              <Route path="/superadmin/users" element={<SuperAdminUsersPage />} />
 
               {/* Public Booking */}
               <Route path="/book/:hospitalSlug" element={<BookAppointment />} />
