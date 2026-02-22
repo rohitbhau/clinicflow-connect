@@ -29,4 +29,7 @@ router.get('/profile', authenticate, asyncHandler(authController.getProfile));
 router.put('/profile', authenticate, asyncHandler(authController.updateProfile));
 router.post('/logout', authenticate, asyncHandler(authController.logout));
 
+router.post('/forgot-password', asyncHandler(authController.forgotPassword));
+router.post('/reset-password/:token', asyncHandler(authController.resetPassword));
+
 export default router;

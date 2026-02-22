@@ -12,6 +12,8 @@ export interface IUser extends Document {
     role: 'superadmin' | 'admin' | 'doctor' | 'staff' | 'patient';
     hospitalName: string;
     isActive: boolean;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: number;
     createdAt: Date;
     updatedAt: Date;
     comparePassword(candidatePassword: string): Promise<boolean>;
@@ -68,6 +70,14 @@ const UserSchema = new Schema<IUser>(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        resetPasswordToken: {
+            type: String,
+            select: false,
+        },
+        resetPasswordExpires: {
+            type: Number,
+            select: false,
         },
     },
     {

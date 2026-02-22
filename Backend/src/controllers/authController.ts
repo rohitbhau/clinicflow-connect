@@ -1,6 +1,8 @@
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+import axios from 'axios';
 import { User } from '../models/User';
 import { Hospital } from '../models/Hospital';
 import { Doctor } from '../models/Doctor';
@@ -333,10 +335,103 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
     }
 };
 
+export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        // Always return success to avoid email enumeration
+        if (!user) {
+            res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+            return;
+        }
+
+        // Generate token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+        // Save to user (we store on User model as plain fields)
+        (user as any).resetPasswordToken = hashedToken;
+        (user as any).resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 min
+        await user.save({ validateBeforeSave: false });
+
+        // Build reset URL — points to frontend reset page
+        const frontendUrl = process.env.FRONTEND_URL || 'https://clinicflow-connect.vercel.app';
+        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+        // Send email via Brevo API
+        await axios.post(
+            'https://api.brevo.com/v3/smtp/email',
+            {
+                sender: { name: 'ClinicFlow', email: process.env.EMAIL_USER || 'a30453001@smtp-brevo.com' },
+                to: [{ email: user.email, name: user.name || 'User' }],
+                subject: 'Password Reset Request - ClinicFlow',
+                htmlContent: `
+                    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                        <div style="text-align:center;margin-bottom:24px;">
+                            <h2 style="color:#6366f1;margin:0;">ClinicFlow</h2>
+                        </div>
+                        <h3 style="color:#1f2937;">Reset Your Password</h3>
+                        <p style="color:#4b5563;">You requested a password reset. Click the button below to set a new password.</p>
+                        <div style="text-align:center;margin:32px 0;">
+                            <a href="${resetUrl}" style="display:inline-block;background:#6366f1;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">Reset Password</a>
+                        </div>
+                        <p style="color:#6b7280;font-size:14px;">This link expires in <strong>30 minutes</strong>.</p>
+                        <p style="color:#6b7280;font-size:14px;">If you didn't request this, please ignore this email. Your account is safe.</p>
+                        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+                        <p style="color:#9ca3af;font-size:12px;text-align:center;">ClinicFlow - Clinic Management System</p>
+                    </div>
+                `,
+            },
+            {
+                headers: {
+                    'api-key': process.env.BREVO_API_KEY,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    } catch (error) {
+        logger.error('Forgot password error:', error);
+        throw error;
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() },
+        }).select('+password');
+
+        if (!user) {
+            throw new ApiError('Invalid or expired reset token', 400);
+        }
+
+        user.password = password;
+        (user as any).resetPasswordToken = undefined;
+        (user as any).resetPasswordExpires = undefined;
+        await user.save();
+
+        res.json({ success: true, message: 'Password reset successfully. Please login.' });
+    } catch (error) {
+        logger.error('Reset password error:', error);
+        throw error;
+    }
+};
+
 export const authController = {
     register,
     login,
     getProfile,
     updateProfile,
     logout,
+    forgotPassword,
+    resetPassword,
 };
