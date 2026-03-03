@@ -18,13 +18,52 @@ import path from 'path';
 
 const app: express.Application = express();
 
+const allowedOrigins = [
+    'https://cliniqmg.ropratech.com',
+    'https://clinicmg.ropratech.com',
+    'https://chic-vitality-production-e566.up.railway.app',
+    'http://localhost:8080',
+    ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
+].map(origin => origin.trim());
+
+const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked request from origin: ${origin}`);
+            // For now, in production debugging, let's allow it but log it
+            // callback(null, true); // Uncomment to force allow everything
+            callback(null, false);
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    credentials: true,
+    optionsSuccessStatus: 204
+};
+
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url} | Origin: ${req.headers.origin}`);
+    next();
+});
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "blob:", "*"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+        }
+    }
 }));
 app.use(compression());
 app.use(express.json({ limit: '10kb' }));
